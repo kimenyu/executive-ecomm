@@ -26,6 +26,6 @@ func Connect() (*sql.DB, error) {
 		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
 
-	log.Println("✅ DB connected successfully")
+	log.Println("DB connected successfully")
 	return db, nil
 }

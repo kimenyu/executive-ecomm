@@ -2,7 +2,7 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
+	"github.com/kimenyu/executive/services/user"
 	"log"
 	"net/http"
 
@@ -23,17 +23,11 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 
 func (s *APIServer) Run() error {
 	router := mux.NewRouter()
-	apiRouter := router.PathPrefix("/api/v1").Subrouter()
+	subRouter := router.PathPrefix("/api/v1").Subrouter()
 
-	apiRouter.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		err := s.db.Ping()
-		if err != nil {
-			http.Error(w, "DB not connected: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "API is running and DB is connected!")
-	}).Methods("GET")
+	userStore := user.NewStore(s.db)
+	userHandler := user.NewHandler(userStore)
+	userHandler.RegisterRoutes(subRouter)
 
 	log.Printf("erver listening on %s", s.addr)
 	return http.ListenAndServe(s.addr, router)
