@@ -37,6 +37,12 @@ type Category struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CategoryStore interface {
+	CreateCategory(category *Category) error
+	GetCategories() ([]*Category, error)
+	GetCategoryById(id int) (*Category, error)
+}
+
 type Product struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
