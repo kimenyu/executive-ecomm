@@ -48,13 +48,27 @@ type Product struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Price       float64   `json:"price"`
-	ImageURL    string    `json:"image_url"`
+	Image       string    `json:"image"`
 	CategoryID  uuid.UUID `json:"category_id"`
-	Stock       int       `json:"stock"`
+	Quantity    int       `json:"quantity"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// used in the http layer only(to handler user input)
+type CreateProductPayload struct {
+	Name        string  `json:"name" validate:"required"`
+	Description string  `json:"description"`
+	Price       float64 `json:"price" validate:"required"`
+	Image       string  `json:"image"`
+	CategoryID  string  `json:"category_id"`
+	Quantity    int     `json:"quantity" validate:"required"`
+}
+
+type ProductStore interface {
+	CreateProduct(product *Product) error
+	GetProductByID(id int) (*Product, error)
+}
 type Cart struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
