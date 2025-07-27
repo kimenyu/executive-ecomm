@@ -29,10 +29,58 @@ func (s *Store) CreateProduct(product *types.Product) error {
 // get a product by id
 func (s *Store) GetProductByID(productID int) (*types.Product, error) {
 	row := s.db.QueryRow("SELECT * FROM products WHERE id = $1", productID)
-	return scanRowsIntoProduct(row)
+	return scanRowIntoProduct(row)
 }
 
-func scanRowsIntoProduct(rows *sql.Row) (*types.Product, error) {
+// Get all products
+func (s *Store) GetAllProducts() ([]*types.Product, error) {
+	rows, err := s.db.Query("SELECT * FROM products")
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	products := make([]*types.Product, 0)
+
+	for rows.Next() {
+		p, err := scanRowsIntoProduct(rows)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+
+	return products, nil
+
+}
+
+// Singe query
+func scanRowIntoProduct(rows *sql.Row) (*types.Product, error) {
+
+	product := new(types.Product)
+
+	err := rows.Scan(
+		&product.ID,
+		&product.Name,
+		&product.Description,
+		&product.Price,
+		&product.Image,
+		&product.CategoryID,
+		&product.Quantity,
+		&product.CreatedAt,
+		&product.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return product, nil
+}
+
+//multiple queries
+func scanRowsIntoProduct(rows *sql.Rows) (*types.Product, error) {
 
 	product := new(types.Product)
 
