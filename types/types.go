@@ -69,6 +69,8 @@ type ProductStore interface {
 	CreateProduct(product *Product) error
 	GetProductByID(id int) (*Product, error)
 	GetAllProducts() ([]*Product, error)
+	DeleteProduct(id int) error
+	UpdateProduct(product *Product) error
 }
 type Cart struct {
 	ID        uuid.UUID `json:"id"`
