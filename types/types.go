@@ -37,6 +37,9 @@ type Category struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CreateCategoryPayload struct {
+	Name string `json:"name" validate:"required"`
+}
 type CategoryStore interface {
 	CreateCategory(category *Category) error
 	GetCategories() ([]*Category, error)
@@ -67,7 +70,7 @@ type CreateProductPayload struct {
 
 type ProductStore interface {
 	CreateProduct(product *Product) error
-	GetProductByID(id int) (*Product, error)
+	GetProductByID(id uuid.UUID) (*Product, error)
 	GetAllProducts() ([]*Product, error)
 	DeleteProduct(id int) error
 	UpdateProduct(product *Product) error
