@@ -2,11 +2,11 @@ package product
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -18,23 +18,28 @@ func NewHandler(store types.ProductStore) *Handler {
 	return &Handler{store: store}
 }
 
+func (h *Handler) RegisterRoutes(r chi.Router) {
+	r.Route("/products", func(r chi.Router) {
+		r.Get("/", h.handleGetProducts)
+		r.Get("/{productID}", h.handleGetProduct)
+		r.Post("/", h.handleCreateProduct)
+	})
+}
+
 func (h *Handler) handleCreateProduct(w http.ResponseWriter, r *http.Request) {
-	// parse the json
-	var p types.CreateProductPayload
+	var input types.CreateProductPayload
 
-	if err := utils.ParseJSON(r, &p); err != nil {
+	if err := utils.ParseJSON(r, &input); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	// validate struct data
-	if err := utils.Validate.Struct(p); err != nil {
+	if err := utils.Validate.Struct(input); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	// Convert to full Product model
-	categoryUUID, err := uuid.Parse(p.CategoryID)
+	categoryUUID, err := uuid.Parse(input.CategoryID)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
@@ -42,59 +47,117 @@ func (h *Handler) handleCreateProduct(w http.ResponseWriter, r *http.Request) {
 
 	product := &types.Product{
 		ID:          uuid.New(),
-		Name:        p.Name,
-		Description: p.Description,
-		Price:       p.Price,
-		Image:       p.Image,
+		Name:        input.Name,
+		Description: input.Description,
+		Price:       input.Price,
+		Image:       input.Image,
 		CategoryID:  categoryUUID,
-		Quantity:    p.Quantity,
+		Quantity:    input.Quantity,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	// store te product
 	if err := h.store.CreateProduct(product); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	// response
 	utils.WriteJSON(w, http.StatusCreated, product)
 }
 
-func (h *Handler) handleGetProductsById(w http.ResponseWriter, r *http.Request) {
-	// extract the id from the urls path
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 3 {
-		utils.WriteError(w, http.StatusBadRequest,
-			fmt.Errorf("invalid URL forma, expected /products/{id}"))
-		return
-	}
-
-	// parse uuid
-	id, err := uuid.Parse(parts[2])
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid product ID"))
-	}
-
-	// fetch from the db using store
-	product, err := h.store.GetProductByID(id)
-	if err != nil {
-		utils.WriteError(w, http.StatusNotFound, fmt.Errorf("product not found"))
-		return
-	}
-
-	// return product as JSON
-	utils.WriteJSON(w, http.StatusOK, product)
-}
-
-func (h *Handler) GetAllProducts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleGetProducts(w http.ResponseWriter, r *http.Request) {
 	products, err := h.store.GetAllProducts()
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
 	}
 
 	utils.WriteJSON(w, http.StatusOK, products)
 }
 
-// update product handler
+func (h *Handler) handleGetProduct(w http.ResponseWriter, r *http.Request) {
+	productIDStr := chi.URLParam(r, "productID")
+	productUUID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	product, err := h.store.GetProductByID(productUUID)
+	if err != nil {
+		utils.WriteError(w, http.StatusNotFound, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, product)
+}
+
+func (h *Handler) handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
+	//  Parse productID from URL
+	productIDStr := chi.URLParam(r, "productID")
+	productUUID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid product ID: %w", err))
+		return
+	}
+
+	//  Parse JSON body
+	var input types.CreateProductPayload
+	if err := utils.ParseJSON(r, &input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid JSON: %w", err))
+		return
+	}
+
+	//  Validate the input
+	if err := utils.Validate.Struct(input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("validation error: %w", err))
+		return
+	}
+
+	// Parse category UUID
+	categoryUUID, err := uuid.Parse(input.CategoryID)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid category ID: %w", err))
+		return
+	}
+
+	// Create updated product struct
+	product := &types.Product{
+		ID:          productUUID,
+		Name:        input.Name,
+		Description: input.Description,
+		Price:       input.Price,
+		Image:       input.Image,
+		CategoryID:  categoryUUID,
+		Quantity:    input.Quantity,
+		UpdatedAt:   time.Now(),
+	}
+
+	//  Update in DB
+	if err := h.store.UpdateProduct(product); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to update product: %w", err))
+		return
+	}
+
+	//  Respond with updated product
+	utils.WriteJSON(w, http.StatusOK, product)
+}
+
+func (h *Handler) handleDeleteProduct(w http.ResponseWriter, r *http.Request) {
+	// Get product ID from URL
+	productIDStr := chi.URLParam(r, "productID")
+	productUUID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid product ID: %w", err))
+		return
+	}
+
+	// Delete product using the store
+	if err := h.store.DeleteProduct(productUUID); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to delete product: %w", err))
+		return
+	}
+
+	// Return 204 No Content
+	utils.WriteNoContent(w)
+}

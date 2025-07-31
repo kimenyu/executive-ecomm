@@ -72,7 +72,7 @@ type ProductStore interface {
 	CreateProduct(product *Product) error
 	GetProductByID(id uuid.UUID) (*Product, error)
 	GetAllProducts() ([]*Product, error)
-	DeleteProduct(id int) error
+	DeleteProduct(id uuid.UUID) error
 	UpdateProduct(product *Product) error
 }
 type Cart struct {

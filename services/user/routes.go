@@ -2,9 +2,9 @@ package user
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	"github.com/kimenyu/executive/configs"
 	"github.com/kimenyu/executive/services/auth"
 	"github.com/kimenyu/executive/types"
@@ -22,12 +22,12 @@ func NewHandler(store types.UserStore) *Handler {
 	return &Handler{store: store}
 }
 
-func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/login", h.handleLogin).Methods("POST")
-	router.HandleFunc("/register", h.handleRegister).Methods("POST")
+func (h *Handler) RegisterRoutes(router chi.Router) {
+	router.Post("/login", h.handleLogin)
+	router.Post("/register", h.handleRegister)
 
-	// admin routes
-	router.HandleFunc("/users/{userID}", auth.WithJWTAuth(h.handleGetUser, h.store)).Methods(http.MethodGet)
+	// Secure route
+	router.With(auth.WithJWTAuth(h.store)).Get("/users/{userID}", h.handleGetUser)
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -77,14 +77,12 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// check if user exists
 	_, err := h.store.GetUserByEmail(user.Email)
 	if err == nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s already exists", user.Email))
 		return
 	}
 
-	// hash password
 	hashedPassword, err := auth.HashPassword(user.Password)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
@@ -108,13 +106,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	str, ok := vars["userID"]
-	if !ok {
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("missing user ID"))
-		return
-	}
-
+	str := chi.URLParam(r, "userID")
 	userID, err := strconv.Atoi(str)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid user ID"))

@@ -6,7 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
+	"github.com/kimenyu/executive/services/product"
 )
 
 type APIServer struct {
@@ -22,13 +23,25 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 }
 
 func (s *APIServer) Run() error {
-	router := mux.NewRouter()
-	subRouter := router.PathPrefix("/api/v1").Subrouter()
+	router := chi.NewRouter()
 
-	userStore := user.NewStore(s.db)
-	userHandler := user.NewHandler(userStore)
-	userHandler.RegisterRoutes(subRouter)
+	// Middleware like CORS, logging, etc. can go here (optional)
 
-	log.Printf("erver listening on %s", s.addr)
+	router.Route("/api/v1", func(r chi.Router) {
+		// Setup stores
+		userStore := user.NewStore(s.db)
+		productStore := product.NewStore(s.db)
+
+		// Setup handlers
+		userHandler := user.NewHandler(userStore)
+		productHandler := product.NewHandler(productStore)
+
+		// Register public routes
+		userHandler.RegisterRoutes(r)
+		productHandler.RegisterRoutes(r)
+
+	})
+
+	log.Printf("Server listening on %s", s.addr)
 	return http.ListenAndServe(s.addr, router)
 }

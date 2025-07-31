@@ -2,6 +2,7 @@ package product
 
 import (
 	"database/sql"
+	"github.com/google/uuid"
 	"github.com/kimenyu/executive/types"
 )
 
@@ -27,7 +28,7 @@ func (s *Store) CreateProduct(product *types.Product) error {
 }
 
 // get a product by ID
-func (s *Store) GetProductByID(productID int) (*types.Product, error) {
+func (s *Store) GetProductByID(productID uuid.UUID) (*types.Product, error) {
 	row := s.db.QueryRow("SELECT * FROM products WHERE id = $1", productID)
 	return scanRowIntoProduct(row)
 }
