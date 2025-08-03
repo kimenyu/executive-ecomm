@@ -51,3 +51,27 @@ func (s *Store) GetProductByID(id uuid.UUID) (*types.Product, error) {
 	row := s.db.QueryRow("SELECT * FROM products WHERE id=$1", id)
 	return helpers.ScanRowIntoProduct(row)
 }
+
+// update a product
+func (s *Store) UpdateProduct(product *types.Product) error {
+	_, err := s.db.Exec(`
+		UPDATE products 
+		SET name = $1, 
+		    description = $2, 
+		    price = $3, 
+		    image = $4, 
+		    category_id = $5, 
+		    quantity = $6, 
+		    updated_at = $7
+		WHERE id = $8
+	`, product.Name, product.Description, product.Price, product.Image,
+		product.CategoryID, product.Quantity, product.UpdatedAt, product.ID)
+
+	return err
+}
+
+// delete product
+func (s *Store) DeleteProduct(id uuid.UUID) error {
+	_, err := s.db.Exec("DELETE FROM products WHERE id=$1", id)
+	return err
+}

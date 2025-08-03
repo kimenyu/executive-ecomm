@@ -23,6 +23,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/", h.handleGetProducts)
 		r.Get("/{productID}", h.handleGetProduct)
 		r.Post("/", h.handleCreateProduct)
+		r.Put("/product/{productID}", h.handleUpdateProduct)
 	})
 }
 
@@ -94,4 +95,74 @@ func (h *Handler) handleGetProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, product)
+}
+
+func (h *Handler) handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
+	var input types.CreateProductPayload
+
+	// Parse JSON body
+	if err := utils.ParseJSON(r, &input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate input
+	if err := utils.Validate.Struct(input); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Get product ID from URL
+	productIDStr := chi.URLParam(r, "productID")
+	productUUID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid product ID"))
+		return
+	}
+
+	// Convert CategoryID to UUID
+	categoryUUID, err := uuid.Parse(input.CategoryID)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid category ID"))
+		return
+	}
+
+	// Create full product object
+	product := &types.Product{
+		ID:          productUUID,
+		Name:        input.Name,
+		Description: input.Description,
+		Price:       input.Price,
+		Image:       input.Image,
+		CategoryID:  categoryUUID,
+		Quantity:    input.Quantity,
+		UpdatedAt:   time.Now(),
+	}
+
+	// Update in DB
+	if err := h.store.UpdateProduct(product); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, product)
+}
+
+func (h *Handler) handleDeleteProduct(w http.ResponseWriter, r *http.Request) {
+	// get the id
+	productStr := chi.URLParam(r, "productID")
+	productUUID, err := uuid.Parse(productStr)
+
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid product id: %w", err))
+		return
+	}
+
+	if err := h.store.DeleteProduct(productUUID); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.WriteNoContent(w)
+
 }
