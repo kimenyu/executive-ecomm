@@ -52,3 +52,39 @@ func ScanRowsIntoProducts(rows *sql.Rows) (*types.Product, error) {
 
 	return product, nil
 }
+
+// scan single category
+func ScanRowIntoCategory(row *sql.Row) (*types.Category, error) {
+	category := new(types.Category)
+
+	err := row.Scan(
+		&category.ID,
+		&category.Name,
+		&category.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return category, nil
+
+}
+
+// scan mulitplecategory
+func ScanRowsIntoCategories(rows *sql.Rows) (*types.Category, error) {
+	categories := new(types.Category)
+
+	err := rows.Scan(
+		&categories.ID,
+		&categories.Name,
+		&categories.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return categories, nil
+
+}

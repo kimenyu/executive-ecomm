@@ -23,6 +23,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/", h.handleGetProducts)
 		r.Get("/{productID}", h.handleGetProduct)
 		r.Post("/", h.handleCreateProduct)
+		r.Delete("/product/{productID}", h.handleDeleteProduct)
 		r.Put("/product/{productID}", h.handleUpdateProduct)
 	})
 }

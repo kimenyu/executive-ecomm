@@ -43,7 +43,7 @@ type CreateCategoryPayload struct {
 type CategoryStore interface {
 	CreateCategory(category *Category) error
 	GetCategories() ([]*Category, error)
-	GetCategoryById(id int) (*Category, error)
+	GetCategoryById(id uuid.UUID) (*Category, error)
 }
 
 type Product struct {
