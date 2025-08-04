@@ -20,11 +20,11 @@ func NewHandler(store types.ProductStore) *Handler {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/products", func(r chi.Router) {
-		r.Get("/", h.handleGetProducts)
+		r.Get("/all", h.handleGetProducts)
 		r.Get("/{productID}", h.handleGetProduct)
-		r.Post("/", h.handleCreateProduct)
-		r.Delete("/product/{productID}", h.handleDeleteProduct)
-		r.Put("/product/{productID}", h.handleUpdateProduct)
+		r.Post("/create", h.handleCreateProduct)
+		r.Delete("/delete/{productID}", h.handleDeleteProduct)
+		r.Put("/update/{productID}", h.handleUpdateProduct)
 	})
 }
 

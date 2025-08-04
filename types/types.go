@@ -16,7 +16,7 @@ type User struct {
 
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
-	GetUserByID(id int) (*User, error)
+	GetUserByID(id uuid.UUID) (*User, error)
 	CreateUser(user *User) error
 }
 
@@ -121,6 +121,19 @@ type Review struct {
 	Rating    int       `json:"rating"` // 1 to 5
 	Comment   string    `json:"comment"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreateReviewPayload struct {
+	Rating  int    `json:"rating" validate:"required,min=1,max=5"`
+	Comment string `json:"comment"`
+}
+
+type ReviewStore interface {
+	CreateReview(review *Review) error
+	GetReviewByID(id uuid.UUID) (*Review, error)
+	GetReviewsByProduct(productID uuid.UUID) ([]*Review, error)
+	UpdateReview(review *Review) error
+	DeleteReview(id uuid.UUID, userID uuid.UUID) error
 }
 
 type Address struct {
