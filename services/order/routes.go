@@ -11,7 +11,8 @@ import (
 )
 
 type Handler struct {
-	store types.OrderStore
+	store     types.OrderStore
+	userStore types.UserStore
 }
 
 func NewHandler(store types.OrderStore) *Handler {
@@ -20,7 +21,7 @@ func NewHandler(store types.OrderStore) *Handler {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
-		r.Use(auth.WithJWTAuth(h.store))
+		r.Use(auth.WithJWTAuth(h.userStore))
 
 		r.Post("/orders", h.handleCreateOrder)
 		r.Get("/orders", h.handleGetOrders)
