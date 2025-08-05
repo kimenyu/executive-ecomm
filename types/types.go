@@ -89,6 +89,17 @@ type CartItem struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CartStore interface {
+	GetCartByUserID(userID uuid.UUID) (*Cart, error)
+	CreateCart(cart *Cart) error
+	AddCartItem(item *CartItem) error
+	GetCartItems(cartID uuid.UUID) ([]CartItem, error)
+}
+
+type AddToCartPayload struct {
+	Quantity int `json:"quantity" validate:"required,min=1"`
+}
+
 type Order struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
@@ -106,6 +117,23 @@ type OrderItem struct {
 	Price     float64   `json:"price"` // price at the time of order
 }
 
+type CreateOrderPayload struct {
+	AddressID uuid.UUID            `json:"address_id" validate:"required"`
+	Items     []CreateOrderItemDTO `json:"items" validate:"required,dive"`
+	Total     float64              `json:"total" validate:"required,gt=0"`
+}
+
+type CreateOrderItemDTO struct {
+	ProductID uuid.UUID `json:"product_id" validate:"required"`
+	Quantity  int       `json:"quantity" validate:"required,min=1"`
+	Price     float64   `json:"price" validate:"required,gt=0"` // Price at time of ordering
+}
+
+type OrderStore interface {
+	CreateOrder(order *Order) error
+	AddOrderItem(item *OrderItem) error
+	GetOrdersByUser(userID uuid.UUID) ([]Order, error)
+}
 type Payment struct {
 	ID      uuid.UUID `json:"id"`
 	OrderID uuid.UUID `json:"order_id"`
