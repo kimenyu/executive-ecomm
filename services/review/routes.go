@@ -2,13 +2,14 @@ package review
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/services/auth"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"net/http"
-	"time"
 )
 
 type Handler struct {
@@ -30,6 +31,19 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 		r.Delete("/reviews/{id}", h.handleDeleteReview)
 	})
 }
+
+// @Summary Create a new product review
+// @Description Authenticated users can submit a review for a product
+// @Tags Reviews
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param productID path string true "Product UUID"
+// @Param review body types.CreateReviewPayload true "Review content"
+// @Success 201 {object} types.Review
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/{productID}/reviews [post]
 
 func (h *Handler) handleCreateReview(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
@@ -70,6 +84,16 @@ func (h *Handler) handleCreateReview(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, review)
 }
 
+// @Summary Delete a review
+// @Description Delete a review by ID (only by the original author)
+// @Tags Reviews
+// @Security BearerAuth
+// @Param id path string true "Review UUID"
+// @Success 204 {object} nil
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /reviews/{id} [delete]
+
 func (h *Handler) handleDeleteReview(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)
 
@@ -88,6 +112,17 @@ func (h *Handler) handleDeleteReview(w http.ResponseWriter, r *http.Request) {
 	utils.WriteNoContent(w)
 }
 
+// @Summary Get review by ID
+// @Description Fetch a single review by its ID
+// @Tags Reviews
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "Review UUID"
+// @Success 200 {object} types.Review
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /reviews/{id} [get]
+
 func (h *Handler) handleGetReviewByID(w http.ResponseWriter, r *http.Request) {
 	reviewID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -104,6 +139,17 @@ func (h *Handler) handleGetReviewByID(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, review)
 }
 
+// @Summary Get product reviews
+// @Description Fetch all reviews for a specific product
+// @Tags Reviews
+// @Security BearerAuth
+// @Produce json
+// @Param productID path string true "Product UUID"
+// @Success 200 {array} types.Review
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/{productID}/reviews [get]
+
 func (h *Handler) handleGetReviewsByProduct(w http.ResponseWriter, r *http.Request) {
 	productID, err := uuid.Parse(chi.URLParam(r, "productID"))
 	if err != nil {
@@ -119,6 +165,21 @@ func (h *Handler) handleGetReviewsByProduct(w http.ResponseWriter, r *http.Reque
 
 	utils.WriteJSON(w, http.StatusOK, reviews)
 }
+
+// @Summary Update a review
+// @Description Update a review by its ID (only by the original author)
+// @Tags Reviews
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Review UUID"
+// @Param review body types.CreateReviewPayload true "Updated review content"
+// @Success 200 {object} types.Review
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /reviews/{id} [put]
 
 func (h *Handler) handleUpdateReview(w http.ResponseWriter, r *http.Request) {
 	// Parse review ID from URL

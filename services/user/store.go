@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/types"
 )
@@ -48,7 +49,7 @@ func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 	return u, nil
 }
 
-func (s *Store) GetUserByID(id int) (*types.User, error) {
+func (s *Store) GetUserByID(id uuid.UUID) (*types.User, error) {
 	rows, err := s.db.Query("SELECT * FROM users WHERE id = $1", id)
 	if err != nil {
 		return nil, err

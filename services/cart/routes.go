@@ -2,13 +2,14 @@ package cart
 
 import (
 	"database/sql"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/services/auth"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"net/http"
-	"time"
 )
 
 type Handler struct {
@@ -25,8 +26,22 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 		r.Use(auth.WithJWTAuth(h.userStore))
 
 		r.Post("/products/{productID}/cart", h.handleAddItemToCart)
+		r.Get("/cart/my/items", h.handleGetCartItems)
 	})
 }
+
+// @Summary Add product to cart
+// @Description Add a product to the authenticated user's cart
+// @Tags Cart
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param productID path string true "Product UUID"
+// @Param payload body types.AddToCartPayload true "Cart item payload"
+// @Success 201 {object} types.CartItem
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/{productID}/cart [post]
 
 func (h *Handler) handleAddItemToCart(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)
@@ -79,6 +94,16 @@ func (h *Handler) handleAddItemToCart(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusCreated, cartItem)
 }
+
+// @Summary Get my cart items
+// @Description Retrieve items in the authenticated user's cart
+// @Tags Cart
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} types.CartItem
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /cart/my/items [get]
 
 func (h *Handler) handleGetCartItems(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)

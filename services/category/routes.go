@@ -1,12 +1,13 @@
 package category
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"net/http"
-	"time"
 )
 
 type Handler struct {
@@ -20,11 +21,22 @@ func NewHandler(store types.CategoryStore) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/categories", func(r chi.Router) {
 		r.Get("/", h.handleGetCategories)
-		r.Get("/{productID}", h.handleGetCategory)
+		r.Get("/{id}", h.handleGetCategory)
 		r.Post("/", h.handleCreateCategory)
 
 	})
 }
+
+// @Summary Create a new category
+// @Description Add a new category to group products
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Param category body types.CreateCategoryPayload true "Category to create"
+// @Success 201 {object} types.Category
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /categories/ [post]
 
 func (h *Handler) handleCreateCategory(w http.ResponseWriter, r *http.Request) {
 	//parse the json
@@ -49,7 +61,14 @@ func (h *Handler) handleCreateCategory(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, category)
 }
 
-// get categories handler
+// @Summary Get all categories
+// @Description Retrieve all available product categories
+// @Tags Categories
+// @Produce json
+// @Success 200 {array} types.Category
+// @Failure 500 {object} map[string]string
+// @Router /categories/ [get]
+
 func (h *Handler) handleGetCategories(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.store.GetCategories()
 	if err != nil {
@@ -60,7 +79,16 @@ func (h *Handler) handleGetCategories(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, categories)
 }
 
-// get singe category handler
+// @Summary Get category by ID
+// @Description Retrieve a single category by its UUID
+// @Tags Categories
+// @Produce json
+// @Param id path string true "Category UUID"
+// @Success 200 {object} types.Category
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /categories/{id} [get]
+
 func (h *Handler) handleGetCategory(w http.ResponseWriter, r *http.Request) {
 	categoryIDStr := chi.URLParam(r, "id")
 	categoryUUID, err := uuid.Parse(categoryIDStr)

@@ -2,12 +2,13 @@ package product
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"net/http"
-	"time"
 )
 
 type Handler struct {
@@ -27,6 +28,17 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/update/{productID}", h.handleUpdateProduct)
 	})
 }
+
+// @Summary Create a new product
+// @Description Add a new product to the catalog
+// @Tags Products
+// @Accept json
+// @Produce json
+// @Param product body types.CreateProductPayload true "Product to create"
+// @Success 201 {object} types.Product
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/create [post]
 
 func (h *Handler) handleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	// parse te json from the user input
@@ -70,6 +82,14 @@ func (h *Handler) handleCreateProduct(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, product)
 }
 
+// @Summary Get all products
+// @Description Retrieve a list of all products
+// @Tags Products
+// @Produce json
+// @Success 200 {array} types.Product
+// @Failure 500 {object} map[string]string
+// @Router /products/all [get]
+
 func (h *Handler) handleGetProducts(w http.ResponseWriter, r *http.Request) {
 	products, err := h.store.GetAllProducts()
 
@@ -80,6 +100,16 @@ func (h *Handler) handleGetProducts(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, products)
 }
+
+// @Summary Get product by ID
+// @Description Retrieve a single product by its UUID
+// @Tags Products
+// @Produce json
+// @Param productID path string true "Product UUID"
+// @Success 200 {object} types.Product
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/{productID} [get]
 
 func (h *Handler) handleGetProduct(w http.ResponseWriter, r *http.Request) {
 	productIDStr := chi.URLParam(r, "productID")
@@ -97,6 +127,18 @@ func (h *Handler) handleGetProduct(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, product)
 }
+
+// @Summary Update an existing product
+// @Description Modify a product by its UUID
+// @Tags Products
+// @Accept json
+// @Produce json
+// @Param productID path string true "Product UUID"
+// @Param product body types.CreateProductPayload true "Updated product data"
+// @Success 200 {object} types.Product
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/update/{productID} [put]
 
 func (h *Handler) handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 	var input types.CreateProductPayload
@@ -148,6 +190,15 @@ func (h *Handler) handleUpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, product)
 }
+
+// @Summary Delete a product
+// @Description Remove a product by its UUID
+// @Tags Products
+// @Param productID path string true "Product UUID"
+// @Success 204 {object} nil
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /products/delete/{productID} [delete]
 
 func (h *Handler) handleDeleteProduct(w http.ResponseWriter, r *http.Request) {
 	// get the id

@@ -1,13 +1,14 @@
 package order
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/services/auth"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"net/http"
-	"time"
 )
 
 type Handler struct {
@@ -27,6 +28,18 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/orders", h.handleGetOrders)
 	})
 }
+
+// @Summary Create a new order
+// @Description Place an order with multiple products
+// @Tags Orders
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param order body types.CreateOrderPayload true "Order payload"
+// @Success 201 {object} types.Order
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /orders [post]
 
 func (h *Handler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)
@@ -67,6 +80,15 @@ func (h *Handler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusCreated, order)
 }
+
+// @Summary Get my orders
+// @Description Retrieve all orders placed by the authenticated user
+// @Tags Orders
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} types.Order
+// @Failure 500 {object} map[string]string
+// @Router /orders [get]
 
 func (h *Handler) handleGetOrders(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)

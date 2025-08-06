@@ -2,6 +2,9 @@ package user
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -9,9 +12,6 @@ import (
 	"github.com/kimenyu/executive/services/auth"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type Handler struct {
@@ -29,6 +29,17 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	// Secure route
 	router.With(auth.WithJWTAuth(h.store)).Get("/users/{userID}", h.handleGetUser)
 }
+
+// @Summary Login a user
+// @Description Authenticate a user and return JWT token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param credentials body types.LoginUserPayload true "Login payload"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /login [post]
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var user types.LoginUserPayload
@@ -63,6 +74,17 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
 }
+
+// @Summary Register a new user
+// @Description Register a new user with name, email, and password
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user body types.RegisterUserPayload true "User registration payload"
+// @Success 201 {object} nil
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /register [post]
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var user types.RegisterUserPayload
@@ -105,9 +127,20 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, nil)
 }
 
+// @Summary Get user by ID
+// @Description Get user profile details by user ID (JWT required)
+// @Tags Users
+// @Produce json
+// @Param userID path int true "User ID"
+// @Success 200 {object} types.User
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
+// @Router /users/{userID} [get]
+
 func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	str := chi.URLParam(r, "userID")
-	userID, err := strconv.Atoi(str)
+	userID, err := uuid.Parse(str)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid user ID"))
 		return
