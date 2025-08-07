@@ -2,6 +2,7 @@ package product
 
 import (
 	"database/sql"
+
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/helpers"
 	"github.com/kimenyu/executive/types"
@@ -18,7 +19,7 @@ func NewStore(db *sql.DB) *Store {
 
 // create a product
 func (s *Store) CreateProduct(product *types.Product) error {
-	_, err := s.db.Exec(`INSERT INTO products(id, name, decsription, price, image, category_id, quantity, created_at, updated_at)
+	_, err := s.db.Exec(`INSERT INTO products(id, name, description, price, image, category_id, quantity, created_at, updated_at)
 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)`, product.ID, product.Name, product.Description, product.Price, product.Image, product.CategoryID, product.Quantity, product.CreatedAt, product.UpdatedAt)
 
 	return err

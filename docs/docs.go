@@ -9,27 +9,19 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {
-            "name": "Executive API Team",
-            "email": "support@executiveapp.com"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
+    "paths": {},
     "securityDefinitions": {
         "BearerAuth": {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
         }
-    },
-    "security": [
-        {
-            "BearerAuth": []
-        }
-    ],
-    "paths": {}
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
@@ -38,8 +30,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http"},
-	Title:            "Executive eCommerce API",
-	Description:      "This is the backend API documentation for the Executive eCommerce Platform, built with Golang.",
+	Title:            "Executive API",
+	Description:      "This is a REST API for the Executive eCommerce platform.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

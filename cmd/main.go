@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/kimenyu/executive/cmd/api"
-	"github.com/kimenyu/executive/db"
 	"log"
 	"os"
+
+	"github.com/kimenyu/executive/cmd/api"
+	"github.com/kimenyu/executive/db"
 
 	"github.com/joho/godotenv"
 )

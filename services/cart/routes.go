@@ -17,8 +17,8 @@ type Handler struct {
 	userStore types.UserStore
 }
 
-func NewHandler(store types.CartStore) *Handler {
-	return &Handler{store: store}
+func NewHandler(store types.CartStore, userStore types.UserStore) *Handler {
+	return &Handler{store: store, userStore: userStore}
 }
 
 func (h *Handler) RegisterRoutes(router chi.Router) {

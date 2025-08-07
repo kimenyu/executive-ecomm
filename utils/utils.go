@@ -3,7 +3,9 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -33,13 +35,16 @@ func WriteNoContent(w http.ResponseWriter) {
 }
 
 func GetTokenFromRequest(r *http.Request) string {
-	tokenAuth := r.Header.Get("Authorization")
-	tokenQuery := r.URL.Query().Get("token")
+	// Get token from Authorization header
+	authHeader := r.Header.Get("Authorization")
+	log.Println("Authorization header:", authHeader)
 
-	if tokenAuth != "" {
-		return tokenAuth
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 	}
 
+	// Fallback: ?token= in URL query
+	tokenQuery := r.URL.Query().Get("token")
 	if tokenQuery != "" {
 		return tokenQuery
 	}

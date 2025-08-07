@@ -3,14 +3,15 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/kimenyu/executive/configs"
 	"github.com/kimenyu/executive/types"
 	"github.com/kimenyu/executive/utils"
-	"log"
-	"net/http"
-	"time"
 )
 
 type contextKey string
@@ -61,7 +62,7 @@ func WithJWTAuth(store types.UserStore) func(http.Handler) http.Handler {
 			}
 
 			// Add UUID to context
-			ctx := context.WithValue(r.Context(), UserKey, userUUID)
+			ctx := context.WithValue(r.Context(), types.UserKey, userUUID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -71,8 +72,8 @@ func CreateJWT(secret []byte, userID string) (string, error) {
 	expiration := time.Second * time.Duration(configs.Envs.JWTExpirationInSeconds)
 
 	claims := jwt.MapClaims{
-		"userID":    userID,
-		"expiresAt": time.Now().Add(expiration).Unix(),
+		"userID": userID,
+		"exp":    time.Now().Add(expiration).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

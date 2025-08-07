@@ -7,7 +7,6 @@
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-
 package api
 
 import (
@@ -54,8 +53,8 @@ func (s *APIServer) Run() error {
 		userHandler := user.NewHandler(userStore)
 		productHandler := product.NewHandler(productStore)
 		categoryHandler := category.NewHandler(categoryStore)
-		reviewHandler := review.NewHandler(reviewStore)
-		cartHandler := cart.NewHandler(cartStore)
+		reviewHandler := review.NewHandler(reviewStore, userStore)
+		cartHandler := cart.NewHandler(cartStore, userStore)
 		orderHandler := order.NewHandler(orderStore)
 
 		// Register public routes

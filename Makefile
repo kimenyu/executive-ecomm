@@ -1,9 +1,13 @@
 build:
-	@swag init --generalInfo cmd/api/api.go --output docs
+	@echo "package main" > dummy.go
+	@swag init --dir . --generalInfo cmd/api/api.go --output docs
+	@rm -f dummy.go
 	@go build -o bin/executive cmd/main.go
 
 run:
 	@./bin/executive
 
 swagger:
-	@swag init --generalInfo cmd/api/api.go --output docs
+	@echo "package main" > dummy.go
+	@swag init --dir . --generalInfo cmd/api/api.go --output docs
+	@rm -f dummy.go
