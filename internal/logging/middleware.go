@@ -2,16 +2,12 @@ package logging
 
 import (
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-chi/httplog/v3"
 	"github.com/go-redis/redis_rate/v10"
-	"github.com/google/uuid"
-	"github.com/kimenyu/executive/types"
 )
 
 // RequestLogger returns a chi middleware that logs requests using the global logger.
@@ -76,26 +72,4 @@ func AddAttrs(next http.Handler, attrs ...slog.Attr) http.Handler {
 		httplog.SetAttrs(r.Context(), attrs...)
 		next.ServeHTTP(w, r)
 	})
-}
-
-func ClientKey(r *http.Request) string {
-	if uid := types.UserIDFromContext(r.Context()); uid != uuid.Nil {
-		return "uid:" + uid.String()
-	}
-	return "ip:" + RealIP(r)
-}
-
-func RealIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.Split(xff, ",")
-		return strings.TrimSpace(parts[0])
-	}
-	if xr := r.Header.Get("X-Real-IP"); xr != "" {
-		return xr
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil && host != "" {
-		return host
-	}
-	return r.RemoteAddr
 }

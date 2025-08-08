@@ -17,9 +17,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -50,6 +48,28 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 		addr: addr,
 		db:   db,
 	}
+}
+
+func ClientKey(r *http.Request) string {
+	if uid := types.UserIDFromContext(r.Context()); uid != uuid.Nil {
+		return "uid:" + uid.String()
+	}
+	return "ip:" + RealIP(r)
+}
+
+func RealIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	if xr := r.Header.Get("X-Real-IP"); xr != "" {
+		return xr
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 func (s *APIServer) Run() error {
@@ -88,7 +108,7 @@ func (s *APIServer) Run() error {
 	})
 
 	// Global distributed rate limit (per client)
-	router.Use(logging.RateLimitMiddleware(limiter, redis_rate.PerMinute(300), clientKey))
+	router.Use(logging.RateLimitMiddleware(limiter, redis_rate.PerMinute(300), ClientKey))
 
 	// Swagger
 	router.Get("/swagger/*", httpSwagger.WrapHandler)
