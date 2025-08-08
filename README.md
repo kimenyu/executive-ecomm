@@ -57,7 +57,7 @@ cd executive-ecomm
 
 ### 2. Setup Environment
 
-Create a `.env` file (example with new configs):
+Create a `.env` file
 
 ```
 # ===== API CONFIG =====
