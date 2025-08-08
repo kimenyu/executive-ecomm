@@ -13,7 +13,6 @@ type Config struct {
 	Version string
 	Env     string
 	Level   string
-	// Compact makes ECS output concise in logs (nice for local/dev).
 	Compact bool
 }
 
