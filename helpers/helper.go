@@ -88,3 +88,25 @@ func ScanRowsIntoCategories(rows *sql.Rows) (*types.Category, error) {
 	return categories, nil
 
 }
+
+func ScanRowIntoAddress(row *sql.Row) (*types.Address, error) {
+
+	address := new(types.Address)
+
+	err := row.Scan(
+		&address.ID,
+		&address.UserID,
+		&address.Line1,
+		&address.Line2,
+		&address.City,
+		&address.Country,
+		&address.ZipCode,
+		&address.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return address, nil
+}

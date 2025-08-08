@@ -1,8 +1,9 @@
 package types
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type User struct {
@@ -173,4 +174,18 @@ type Address struct {
 	Country   string    `json:"country"`
 	ZipCode   string    `json:"zip_code"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type AddressStore interface {
+	CreateAddress(address *Address) error
+	GetAddress(userID uuid.UUID) (*Address, error)
+	UpdateAddress(address *Address) error
+}
+
+type CreateAddressPayload struct {
+	Line1   string `json:"line1"`
+	Line2   string `json:"line2"`
+	City    string `json:"city" validate:"required"`
+	Country string `json:"country" validate:"required"`
+	ZipCode string `json:"zip_code" validate:"required"`
 }
