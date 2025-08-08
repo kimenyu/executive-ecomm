@@ -22,7 +22,6 @@ var base *slog.Logger
 func Init(cfg Config) *slog.Logger {
 	level := parseLevel(cfg.Level)
 
-	// Decide compact mode: explicit flag OR dev/local envs
 	compact := cfg.Compact ||
 		strings.EqualFold(cfg.Env, "development") ||
 		strings.EqualFold(cfg.Env, "dev") ||

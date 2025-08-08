@@ -66,7 +66,6 @@ func RateLimitMiddleware(
 	}
 }
 
-// AddAttrs adds attributes to the request-scoped logger (e.g., user_id).
 func AddAttrs(next http.Handler, attrs ...slog.Attr) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httplog.SetAttrs(r.Context(), attrs...)
