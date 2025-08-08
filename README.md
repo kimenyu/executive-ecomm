@@ -4,6 +4,10 @@ The **Executive eCommerce API** is a full-featured, production-grade backend wri
 
 ## Features
 
+- **Distributed rate limiting** with Redis (`go-redis/redis_rate`) — configurable requests per minute per user/IP
+- **Structured logging** using `log/slog` and `go-chi/httplog` with ECS format
+- **Environment-based config** for log level, compact logs, and rate limits
+
 - User registration and authentication with JWT
 - Product and category management
 - Cart creation and item tracking
@@ -13,6 +17,9 @@ The **Executive eCommerce API** is a full-featured, production-grade backend wri
 - Full Swagger/OpenAPI documentation
 
 ## Tech Stack
+
+- **Rate Limiting**: Redis with `go-redis/redis_rate`
+- **Logging**: Structured JSON logs via `log/slog` and `go-chi/httplog`
 
 - **Language**: Go (Golang)
 - **Framework**: Chi Router
@@ -50,12 +57,35 @@ cd executive-ecomm
 
 ### 2. Setup Environment
 
-Create a `.env` file:
+Create a `.env` file (example with new configs):
 
 ```
-API_ADDR=localhost:8080
-DB_URL=postgres://youruser:yourpass@localhost:5432/executive?sslmode=disable
-JWT_SECRET=your-secret
+# ===== API CONFIG =====
+API_ADDR=:8080
+APP_NAME=executive-api
+APP_ENV=development
+APP_VERSION=v1.0.0
+LOG_LEVEL=info
+LOG_COMPACT=true
+
+# ===== DATABASE =====
+DATABASE_URL=postgres://ecommerce_user:strongpassword@localhost:5432/ecommerce?sslmode=disable
+
+# ===== JWT AUTH =====
+JWT_SECRET=supersecretkey
+JWT_EXPIRATION_SECONDS=86400
+
+# ===== REDIS =====
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# ===== RATE LIMIT CONFIG =====
+RATE_LIMIT_REQUESTS_PER_MIN=300
+
+# ===== SWAGGER =====
+SWAGGER_HOST=localhost:8080
+SWAGGER_SCHEMES=http
 ```
 
 ### 3. Build & Run
