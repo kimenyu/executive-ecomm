@@ -119,9 +119,8 @@ type OrderItem struct {
 }
 
 type CreateOrderPayload struct {
-	AddressID uuid.UUID            `json:"address_id" validate:"required"`
-	Items     []CreateOrderItemDTO `json:"items" validate:"required,dive"`
-	Total     float64              `json:"total" validate:"required,gt=0"`
+	Items []CreateOrderItemDTO `json:"items" validate:"required,dive"`
+	Total float64              `json:"total" validate:"required,gt=0"`
 }
 
 type CreateOrderItemDTO struct {

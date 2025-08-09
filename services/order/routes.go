@@ -1,6 +1,7 @@
 package order
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -12,34 +13,22 @@ import (
 )
 
 type Handler struct {
-	store     types.OrderStore
-	userStore types.UserStore
+	store        types.OrderStore
+	userStore    types.UserStore
+	addressStore types.AddressStore
 }
 
-func NewHandler(store types.OrderStore, userStore types.UserStore) *Handler {
-	return &Handler{store: store, userStore: userStore}
+func NewHandler(store types.OrderStore, userStore types.UserStore, addressStore types.AddressStore) *Handler {
+	return &Handler{store: store, userStore: userStore, addressStore: addressStore}
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(auth.WithJWTAuth(h.userStore))
-
 		r.Post("/orders", h.handleCreateOrder)
-		r.Get("/orders", h.handleGetOrders)
+		r.Get("/orders", h.handleGetOrdersByUser)
 	})
 }
-
-// @Summary Create a new order
-// @Description Place an order with multiple products
-// @Tags Orders
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param order body types.CreateOrderPayload true "Order payload"
-// @Success 201 {object} types.Order
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /orders [post]
 
 func (h *Handler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)
@@ -50,12 +39,38 @@ func (h *Handler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate items
+	if len(input.Items) == 0 {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("order must contain at least one item"))
+		return
+	}
+
+	// Calculate total
+	var total float64
+	for _, item := range input.Items {
+		if item.Quantity <= 0 {
+			utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("quantity for product %s must be greater than 0", item.ProductID))
+			return
+		}
+		if item.Price <= 0 {
+			utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("price for product %s must be greater than 0", item.ProductID))
+			return
+		}
+		total += float64(item.Quantity) * item.Price
+	}
+
+	address, err := h.addressStore.GetAddress(userID)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+	}
+
+	// Create order
 	order := &types.Order{
 		ID:        uuid.New(),
 		UserID:    userID,
-		Total:     input.Total,
+		AddressID: address.ID,
+		Total:     total,
 		Status:    "pending",
-		AddressID: input.AddressID,
 		CreatedAt: time.Now(),
 	}
 
@@ -64,6 +79,7 @@ func (h *Handler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Add order items
 	for _, item := range input.Items {
 		orderItem := &types.OrderItem{
 			ID:        uuid.New(),
@@ -81,16 +97,7 @@ func (h *Handler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, order)
 }
 
-// @Summary Get my orders
-// @Description Retrieve all orders placed by the authenticated user
-// @Tags Orders
-// @Security BearerAuth
-// @Produce json
-// @Success 200 {array} types.Order
-// @Failure 500 {object} map[string]string
-// @Router /orders [get]
-
-func (h *Handler) handleGetOrders(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleGetOrdersByUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(types.UserKey).(uuid.UUID)
 
 	orders, err := h.store.GetOrdersByUser(userID)

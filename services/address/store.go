@@ -24,7 +24,7 @@ func (s *Store) CreateAddress(address *types.Address) error {
 }
 
 func (s *Store) GetAddress(userID uuid.UUID) (*types.Address, error) {
-	row := s.db.QueryRow(`SELECT id, user_id, line1, line2, city, country, zip_code WHERE user_id=$1`, userID)
+	row := s.db.QueryRow(`SELECT id, user_id, line1, line2, city, country, zip_code, created_at FROM addresses WHERE user_id=$1`, userID)
 	return helpers.ScanRowIntoAddress(row)
 }
 
