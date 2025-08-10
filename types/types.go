@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,7 +116,7 @@ type OrderItem struct {
 	OrderID   uuid.UUID `json:"order_id"`
 	ProductID uuid.UUID `json:"product_id"`
 	Quantity  int       `json:"quantity"`
-	Price     float64   `json:"price"` // price at the time of order
+	Price     float64   `json:"price"`
 }
 
 type CreateOrderPayload struct {
@@ -126,20 +127,45 @@ type CreateOrderPayload struct {
 type CreateOrderItemDTO struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
 	Quantity  int       `json:"quantity" validate:"required,min=1"`
-	Price     float64   `json:"price" validate:"required,gt=0"` // Price at time of ordering
+	Price     float64   `json:"price" validate:"required,gt=0"`
+}
+
+type OrderItemDetailed struct {
+	ID          uuid.UUID `json:"id"`
+	ProductID   uuid.UUID `json:"product_id"`
+	ProductName string    `json:"product_name"`
+	Quantity    int       `json:"quantity"`
+	Price       float64   `json:"price"`
+}
+
+type OrderWithItems struct {
+	Order Order               `json:"order"`
+	Items []OrderItemDetailed `json:"items"`
+}
+
+type UpdateOrderPayload struct {
+	Status string `json:"status" validate:"required,oneof=pending paid shipped completed cancelled"`
 }
 
 type OrderStore interface {
 	CreateOrder(order *Order) error
 	AddOrderItem(item *OrderItem) error
 	GetOrdersByUser(userID uuid.UUID) ([]Order, error)
+	GetOrderWithItemsByID(orderID uuid.UUID) (*Order, error)
+	UpdateOrder(order *Order) error
 }
 type Payment struct {
-	ID      uuid.UUID `json:"id"`
-	OrderID uuid.UUID `json:"order_id"`
-	Method  string    `json:"method"` // e.g., mpesa, card
-	Status  string    `json:"status"` // e.g., success, failed
-	PaidAt  time.Time `json:"paid_at"`
+	ID                uuid.UUID       `json:"id"`
+	OrderID           uuid.UUID       `json:"order_id"`
+	Amount            float64         `json:"amount"`
+	Provider          string          `json:"provider"`
+	Status            string          `json:"status"`
+	CheckoutRequestID string          `json:"checkout_request_id"`
+	MerchantRequestID string          `json:"merchant_request_id"`
+	MpesaReceipt      string          `json:"mpesa_receipt"`
+	Phone             string          `json:"phone"`
+	Metadata          json.RawMessage `json:"metadata"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 type Review struct {

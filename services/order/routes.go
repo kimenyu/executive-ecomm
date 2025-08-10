@@ -1,6 +1,7 @@
 package order
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -27,6 +28,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Use(auth.WithJWTAuth(h.userStore))
 		r.Post("/orders", h.handleCreateOrder)
 		r.Get("/orders", h.handleGetOrdersByUser)
+		r.Get("/orders/{orderID}", h.handleGetOrderByID)
+		r.Patch("/orders/{id}", h.handleUpdateOrder)
+
 	})
 }
 
@@ -107,4 +111,62 @@ func (h *Handler) handleGetOrdersByUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.WriteJSON(w, http.StatusOK, orders)
+}
+
+func (h *Handler) handleGetOrderByID(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(types.UserKey).(uuid.UUID)
+	orderIDParam := chi.URLParam(r, "orderID")
+
+	orderID, err := uuid.Parse(orderIDParam)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid order ID"))
+		return
+	}
+
+	order, err := h.store.GetOrderWithItemsByID(orderID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if order == nil {
+		utils.WriteError(w, http.StatusNotFound, fmt.Errorf("order not found"))
+		return
+	}
+
+	if order.UserID != userID {
+		utils.WriteError(w, http.StatusForbidden, fmt.Errorf("not authorized to view this order"))
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, order)
+}
+
+func (h *Handler) handleUpdateOrder(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var p types.UpdateOrderPayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	order, err := h.store.GetOrderWithItemsByID(orderID)
+	if err != nil {
+		utils.WriteError(w, http.StatusNotFound, err)
+		return
+	}
+
+	order.Status = p.Status
+	if err := h.store.UpdateOrder(order); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, order)
 }

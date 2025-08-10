@@ -33,9 +33,9 @@ CREATE TABLE products (
     name TEXT NOT NULL,
     description TEXT,
     price NUMERIC(10,2) NOT NULL,
-    image_url TEXT,
+    image TEXT,
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-    stock INTEGER DEFAULT 0,
+    quantity INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -86,10 +86,20 @@ CREATE TABLE order_items (
 );
 
 -- payments
+-- 2025xxxx_create_payments.sql
 CREATE TABLE payments (
-    id UUID PRIMARY KEY,
-    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
-    method TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('success', 'failed')),
-    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                          order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+                          amount numeric(12,2) NOT NULL,
+                          provider text NOT NULL, -- 'mpesa'
+                          status text NOT NULL, -- 'pending'|'success'|'failed'
+                          checkout_request_id text,
+                          merchant_request_id text,
+                          mpesa_receipt text,
+                          phone text,
+                          metadata jsonb, -- raw callback
+                          created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_payments_checkout_request_id ON payments(checkout_request_id);
+CREATE INDEX idx_payments_order_id ON payments(order_id);
