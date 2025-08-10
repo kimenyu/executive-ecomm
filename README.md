@@ -1,6 +1,6 @@
 # Executive eCommerce API
 
-The **Executive eCommerce API** is a full-featured, production-grade backend written in Go for managing eCommerce workflows — including user authentication, product listings, cart management, order processing, and product reviews. Designed for scalability and maintainability, it features clean architecture, structured routing, and comprehensive API documentation via Swagger.
+The **Executive eCommerce API** is a full-featured, backend written in Go for managing eCommerce workflows — including user authentication, product listings, cart management, order processing, product reviews, and Mpesa payment integration. Designed for scalability and maintainability, it features clean architecture, structured routing, and comprehensive API documentation via Swagger.
 
 ## Features
 
@@ -13,6 +13,7 @@ The **Executive eCommerce API** is a full-featured, production-grade backend wri
 - Cart creation and item tracking
 - Order placement and tracking
 - Product reviews with ownership validation
+- **Mpesa payment integration** with Node.js STK Push service and Go backend confirmation
 - PostgreSQL database integration
 - Full Swagger/OpenAPI documentation
 
@@ -27,6 +28,7 @@ The **Executive eCommerce API** is a full-featured, production-grade backend wri
 - **ORM/Query Layer**: `database/sql`
 - **Auth**: JWT with middleware
 - **Documentation**: Swagger (`swaggo/swag`)
+- **Payment Service**: Node.js Mpesa STK Push and Callback handler
 - **Dependency Management**: Go Modules
 - **Containerization**: Docker & Docker Compose
 
