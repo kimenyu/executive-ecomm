@@ -42,6 +42,7 @@ executive-ecomm/
 ├── configs/          # Config utilities
 ├── utils/            # Helper utilities
 ├── docs/             # Swagger docs
+├── mpesa-service/    # Node.js Mpesa STK Push and callback handler
 ├── docker-compose.yml
 ├── Makefile
 ```
@@ -86,6 +87,17 @@ RATE_LIMIT_REQUESTS_PER_MIN=300
 # ===== SWAGGER =====
 SWAGGER_HOST=localhost:8080
 SWAGGER_SCHEMES=http
+
+# ===== MPESA PAYMENT SERVICE =====
+MPESA_CONSUMER_KEY=your_consumer_key
+MPESA_CONSUMER_SECRET=your_consumer_secret
+MPESA_SHORTCODE=174379
+MPESA_PASSKEY=your_passkey
+MPESA_ENV=sandbox
+CALLBACK_BASE_URL=http://your-node-service-url
+GO_BACKEND_URL=http://your-go-backend-url/payments/confirm
+NODE_NOTIFY_SECRET=some-secure-secret
+
 ```
 
 ### 3. Build & Run
@@ -95,10 +107,12 @@ make build
 make run
 ```
 
-Or, to just generate Swagger docs:
+Start Mpesa Node.js payment service separately(in mpesa-service folder)
 
 ```bash
-make swagger
+cd mpesa-service
+npm install
+npm run start
 ```
 
 ### 4. View API Docs
@@ -109,6 +123,12 @@ Visit:
 http://localhost:8080/swagger/index.html
 ```
 
+### Payment flow with Mpesa
+The Node.js service handles Mpesa STK Push requests and callbacks
+
+On payment confirmation, it securely notifies the Go backend with payment details
+
+Go backend creates payment records and updates order status accordingly
 ## API Documentation
 
 All endpoints are documented using Swagger (OpenAPI 2.0). JWT-protected routes require an `Authorization: Bearer <token>` header.
