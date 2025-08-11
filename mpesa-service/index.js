@@ -89,8 +89,8 @@ app.post("/mpesa/stkpush", async (req, res) => {
 });
 
 // callback
+// callback
 app.post("/mpesa/callback", async (req, res) => {
-    // Always ACK to Mpesa immediately
     res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
     try {
@@ -108,19 +108,22 @@ app.post("/mpesa/callback", async (req, res) => {
         const resultCode = stkCallback.ResultCode;
         const status = resultCode === 0 ? "success" : "failed";
 
-        // Extract metadata from callback
         const items = stkCallback.CallbackMetadata?.Item || [];
         const mpesaReceipt = items.find(i => i.Name === "MpesaReceiptNumber")?.Value;
         const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
         const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
 
-        if (!accountRef) {
-            console.error("Missing AccountReference in callback metadata — cannot identify order");
+        // Fallback logic for orderId
+        const orderId = accountRef || checkoutRequestID || merchantRequestID;
+        if (!orderId) {
+            console.error("No valid order identifier found in callback");
             return;
         }
-        const orderId = accountRef;
+        if (!accountRef) {
+            console.warn(`AccountReference missing in callback, falling back to orderId: ${orderId}`);
+        }
 
-        // Fetch order details from Go backend to get the total amount
+        // Fetch order details
         let orderTotal = null;
         try {
             const orderResp = await axios.get(
@@ -136,11 +139,10 @@ app.post("/mpesa/callback", async (req, res) => {
             orderTotal = orderResp.data.order?.total;
         } catch (err) {
             console.error("Failed to fetch order details from Go backend:", err.message);
-            // fallback to amount in callback
             orderTotal = items.find(i => i.Name === "Amount")?.Value;
         }
 
-        // Notify Go backend payment confirmation with verified total
+        // Notify backend
         await axios.post(
             GO_BACKEND_NOTIFY_URL,
             {
