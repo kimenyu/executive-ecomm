@@ -17,6 +17,7 @@ type Config struct {
 	DBName                 string
 	JWTSecret              string
 	JWTExpirationInSeconds int64
+	NodeNotifySecret       string
 }
 
 var Envs = initConfig()
@@ -33,6 +34,7 @@ func initConfig() Config {
 		DBName:                 getEnv("DB_NAME", "ecom"),
 		JWTSecret:              getEnv("JWT_SECRET", "not-so-secret-now-is-it?"),
 		JWTExpirationInSeconds: getEnvAsInt("JWT_EXPIRATION_IN_SECONDS", 3600*24*7),
+		NodeNotifySecret:       getEnv("NODE_NOTIFY_SECRET", ""),
 	}
 }
 

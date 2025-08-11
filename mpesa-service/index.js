@@ -115,7 +115,6 @@ app.post("/mpesa/callback", async (req, res) => {
         const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
 
         const orderId = accountRef || checkoutRequestID || merchantRequestID;
-        const jwtToken = "supersecretkey";
 
         // Fetch order details from Go backend to get the total amount
         let orderTotal = null;
@@ -124,7 +123,6 @@ app.post("/mpesa/callback", async (req, res) => {
                 `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
                 {
                     headers: {
-                        Authorization: `Bearer ${jwtToken}`,
                         "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
                     }
                 }

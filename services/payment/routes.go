@@ -97,6 +97,7 @@ func (h *Handler) handleConfirm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	fmt.Printf("Received confirmPayload.OrderID: %v\n", p.OrderID)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
