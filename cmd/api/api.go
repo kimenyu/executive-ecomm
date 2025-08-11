@@ -24,6 +24,7 @@ import (
 	"github.com/go-chi/httplog/v3"
 	"github.com/kimenyu/executive/internal/logging"
 	"github.com/kimenyu/executive/services/address"
+	"github.com/kimenyu/executive/services/payment"
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/go-redis/redis_rate/v10"
@@ -123,6 +124,7 @@ func (s *APIServer) Run() error {
 		cartStore := cart.NewStore(s.db)
 		orderStore := order.NewStore(s.db)
 		addressStore := address.NewStore(s.db)
+		paymenStore := payment.NewStore(s.db)
 
 		// handlers
 		userHandler := user.NewHandler(userStore)
@@ -132,6 +134,7 @@ func (s *APIServer) Run() error {
 		cartHandler := cart.NewHandler(cartStore, userStore)
 		orderHandler := order.NewHandler(orderStore, userStore, addressStore)
 		addressHandler := address.NewHandler(addressStore, userStore)
+		paymentHandler := payment.NewHandler(paymenStore, orderStore)
 
 		// Add per-request attribute when authenticated (user_id)
 		r.Use(func(next http.Handler) http.Handler {
@@ -151,6 +154,7 @@ func (s *APIServer) Run() error {
 		cartHandler.RegisterRoutes(r)
 		orderHandler.RegisterRoutes(r)
 		addressHandler.RegisterRoutes(r)
+		paymentHandler.RegisterRoutes(r)
 	})
 
 	log.Printf("Server listening on %s", s.addr)
