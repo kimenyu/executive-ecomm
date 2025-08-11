@@ -69,7 +69,7 @@ func (h *Handler) handleConfirm(w http.ResponseWriter, r *http.Request) {
 	// create payment record
 	pay := &types.Payment{
 		ID:                uuid.New(),
-		OrderID:           order.ID,
+		OrderID:           order.Order.ID,
 		Amount:            p.Amount,
 		Provider:          p.Provider,
 		Status:            p.Status,
