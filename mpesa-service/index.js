@@ -8,6 +8,11 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
+
+app.get("/testapi", async(req, res) => {
+    res.send("api is working")
+})
+
 const {
     MPESA_CONSUMER_KEY,
     MPESA_CONSUMER_SECRET,
