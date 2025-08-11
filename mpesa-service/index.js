@@ -127,7 +127,7 @@ app.post("/mpesa/callback", async (req, res) => {
             orderTotal = items.find(i => i.Name === "Amount")?.Value;
         }
 
-        // Notify Go backend payment confirmation with verified total amount
+        // Notify Go backend payment confirmation with verified total
         await axios.post(
             GO_BACKEND_NOTIFY_URL,
             {
