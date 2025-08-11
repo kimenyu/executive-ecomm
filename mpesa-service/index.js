@@ -115,14 +115,21 @@ app.post("/mpesa/callback", async (req, res) => {
         const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
 
         const orderId = accountRef || checkoutRequestID || merchantRequestID;
+        const jwtToken = "supersecretkey";
 
         // Fetch order details from Go backend to get the total amount
         let orderTotal = null;
         try {
             const orderResp = await axios.get(
                 `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
-                { headers: { "X-Node-Notify-Secret": NODE_NOTIFY_SECRET } }
+                {
+                    headers: {
+                        Authorization: `Bearer ${jwtToken}`,
+                        "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
+                    }
+                }
             );
+
 
             orderTotal = orderResp.data.Order.Total || orderResp.data.total; // depending on your API response shape
         } catch (err) {
