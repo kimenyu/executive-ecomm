@@ -8,10 +8,9 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
-
-app.get("/testapi", async(req, res) => {
-    res.send("api is working")
-})
+app.get("/testapi", async (req, res) => {
+    res.send("api is working");
+});
 
 const {
     MPESA_CONSUMER_KEY,
@@ -21,7 +20,8 @@ const {
     MPESA_ENV,
     CALLBACK_BASE_URL,
     GO_BACKEND_NOTIFY_URL,
-    NODE_NOTIFY_SECRET
+    NODE_NOTIFY_SECRET,
+    GO_BACKEND_JWT_TOKEN,
 } = process.env;
 
 const MPESA_BASE =
@@ -114,7 +114,11 @@ app.post("/mpesa/callback", async (req, res) => {
         const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
         const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
 
-        const orderId = accountRef || checkoutRequestID || merchantRequestID;
+        if (!accountRef) {
+            console.error("Missing AccountReference in callback metadata — cannot identify order");
+            return;
+        }
+        const orderId = accountRef;
 
         // Fetch order details from Go backend to get the total amount
         let orderTotal = null;
@@ -123,13 +127,13 @@ app.post("/mpesa/callback", async (req, res) => {
                 `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
                 {
                     headers: {
+                        Authorization: `Bearer ${GO_BACKEND_JWT_TOKEN}`,
                         "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
                     }
                 }
             );
 
-
-            orderTotal = orderResp.data.Order.Total || orderResp.data.total; // depending on your API response shape
+            orderTotal = orderResp.data.order?.total;
         } catch (err) {
             console.error("Failed to fetch order details from Go backend:", err.message);
             // fallback to amount in callback
