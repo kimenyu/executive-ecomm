@@ -88,9 +88,7 @@ func (h *Handler) handleConfirm(w http.ResponseWriter, r *http.Request) {
 
 	// update order state if success
 	if p.Status == "success" {
-		order.Status = "paid"
-		if err := h.orderStore.UpdateOrder(order); err != nil {
-			// log but continue
+		if err := h.orderStore.UpdateOrderStatus(order.Order.ID, "paid"); err != nil {
 			utils.WriteError(w, http.StatusInternalServerError, err)
 			return
 		}

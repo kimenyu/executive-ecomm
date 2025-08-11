@@ -1,7 +1,6 @@
 package order
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -136,16 +135,7 @@ func (s *Store) GetOrderWithItemsByID(orderID uuid.UUID) (*types.OrderWithItems,
 	}, nil
 }
 
-func (s *Store) UpdateOrder(o *types.Order) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	query := `
-        UPDATE orders
-        SET status = $1, updated_at = $2
-        WHERE id = $3
-    `
-
-	_, err := s.db.ExecContext(ctx, query, o.Status, time.Now(), o.ID)
+func (s *Store) UpdateOrderStatus(orderID uuid.UUID, status string) error {
+	_, err := s.db.Exec(`UPDATE orders SET status = $1 WHERE id = $2`, status, orderID)
 	return err
 }
