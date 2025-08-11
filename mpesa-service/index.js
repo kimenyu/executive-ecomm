@@ -106,45 +106,48 @@ app.post("/mpesa/callback", async (req, res) => {
         const checkoutRequestID = stkCallback.CheckoutRequestID;
         const merchantRequestID = stkCallback.MerchantRequestID;
         const resultCode = stkCallback.ResultCode;
-        const resultDesc = stkCallback.ResultDesc;
         const status = resultCode === 0 ? "success" : "failed";
 
-        // Extract metadata
-        let amount = null;
-        let mpesaReceipt = null;
-        let phone = null;
-        let accountRef = null;
-
+        // Extract metadata from callback
         const items = stkCallback.CallbackMetadata?.Item || [];
-        for (const it of items) {
-            if (it.Name === "Amount") amount = it.Value;
-            if (it.Name === "MpesaReceiptNumber") mpesaReceipt = it.Value;
-            if (it.Name === "PhoneNumber") phone = it.Value;
-            if (it.Name === "AccountReference") accountRef = it.Value;
-        }
+        const mpesaReceipt = items.find(i => i.Name === "MpesaReceiptNumber")?.Value;
+        const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
+        const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
 
         const orderId = accountRef || checkoutRequestID || merchantRequestID;
 
+        // Fetch order details from Go backend to get the total amount
+        let orderTotal = null;
+        try {
+            const orderResp = await axios.get(`${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`);
+            orderTotal = orderResp.data.Order.Total || orderResp.data.total; // depending on your API response shape
+        } catch (err) {
+            console.error("Failed to fetch order details from Go backend:", err.message);
+            // fallback to amount in callback
+            orderTotal = items.find(i => i.Name === "Amount")?.Value;
+        }
+
+        // Notify Go backend payment confirmation with verified total amount
         await axios.post(
             GO_BACKEND_NOTIFY_URL,
             {
                 order_id: orderId,
                 status,
-                amount,
+                amount: orderTotal,
                 provider: "mpesa",
                 checkout_request_id: checkoutRequestID,
                 merchant_request_id: merchantRequestID,
                 mpesa_receipt: mpesaReceipt,
                 phone,
-                metadata: body
+                raw: body
             },
             { headers: { "X-Node-Notify-Secret": NODE_NOTIFY_SECRET } }
         ).catch(e => {
-            console.error("failed notify go backend:", e.response?.data || e.message);
+            console.error("Failed to notify Go backend:", e.response?.data || e.message);
         });
 
     } catch (err) {
-        console.error("error processing mpesa callback:", err);
+        console.error("Error processing mpesa callback:", err);
     }
 });
 

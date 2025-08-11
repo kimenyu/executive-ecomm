@@ -134,7 +134,7 @@ func (h *Handler) handleGetOrderByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if order.UserID != userID {
+	if order.Order.UserID != userID {
 		utils.WriteError(w, http.StatusForbidden, fmt.Errorf("not authorized to view this order"))
 		return
 	}
@@ -162,8 +162,8 @@ func (h *Handler) handleUpdateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order.Status = p.Status
-	if err := h.store.UpdateOrder(order); err != nil {
+	order.Order.Status = p.Status
+	if err := h.store.UpdateOrder(&order.Order); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}

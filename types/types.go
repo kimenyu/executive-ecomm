@@ -152,6 +152,7 @@ type OrderStore interface {
 	AddOrderItem(item *OrderItem) error
 	GetOrdersByUser(userID uuid.UUID) ([]Order, error)
 	GetOrderWithItemsByID(orderID uuid.UUID) (*OrderWithItems, error)
+	UpdateOrder(order *Order) error
 	UpdateOrderStatus(orderID uuid.UUID, status string) error
 }
 type Payment struct {

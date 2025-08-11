@@ -53,7 +53,6 @@ func (h *Handler) handleConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// parse order id -> your orders are UUIDs
 	orderUUID, err := uuid.Parse(p.OrderID)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid order_id"))
@@ -63,6 +62,11 @@ func (h *Handler) handleConfirm(w http.ResponseWriter, r *http.Request) {
 	order, err := h.orderStore.GetOrderWithItemsByID(orderUUID)
 	if err != nil {
 		utils.WriteError(w, http.StatusNotFound, fmt.Errorf("order not found"))
+		return
+	}
+
+	if p.Amount != order.Order.Total {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("payment amount %.2f does not match order total %.2f", p.Amount, order.Order.Total))
 		return
 	}
 
