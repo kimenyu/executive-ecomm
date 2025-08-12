@@ -21,7 +21,7 @@ const {
     CALLBACK_BASE_URL,
     GO_BACKEND_NOTIFY_URL,
     NODE_NOTIFY_SECRET,
-    GO_BACKEND_JWT_TOKEN,
+    JWT_SECRET,
 } = process.env;
 
 const MPESA_BASE =
@@ -145,7 +145,7 @@ app.post("/mpesa/callback", async (req, res) => {
                 `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
                 {
                     headers: {
-                        Authorization: `Bearer ${GO_BACKEND_JWT_TOKEN}`,
+                        Authorization: `Bearer ${JWT_SECRET}`,
                         "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
                     }
                 }
