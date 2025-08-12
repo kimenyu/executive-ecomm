@@ -114,7 +114,7 @@ app.post("/mpesa/callback", async (req, res) => {
         const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
 
         // Fallback logic for orderId
-        const orderId = accountRef || checkoutRequestID || merchantRequestID;
+        const orderId = req.body.order_id;
         if (!orderId) {
             console.error("No valid order identifier found in callback");
             return;
