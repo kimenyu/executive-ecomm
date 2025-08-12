@@ -9,8 +9,7 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
-// In-memory store for mapping CheckoutRequestID to order_id
-// In production, use Redis or database
+// In-memory store for mapping CheckoutRequestID to order_id( I will change to redis in prod)
 const checkoutOrderMap = new Map();
 
 app.get("/testapi", async (req, res) => {
@@ -34,7 +33,7 @@ const MPESA_BASE =
         ? "https://api.safaricom.co.ke"
         : "https://sandbox.safaricom.co.ke";
 
-// Generate JWT token for Go backend authentication
+// generate JWT token for Go backend authentication
 function generateJWTToken() {
     const payload = {
         service: "mpesa-node",
@@ -52,7 +51,7 @@ async function getAccessToken() {
     return res.data.access_token;
 }
 
-// Generate Lipa Na Mpesa password
+// generate Lipa Na Mpesa password
 function lipaPassword() {
     const timestamp = dayjs().format("YYYYMMDDHHmmss");
     const raw = `${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`;
@@ -115,7 +114,7 @@ app.post("/mpesa/stkpush", async (req, res) => {
     }
 });
 
-// Callback handler
+// callback handler
 app.post("/mpesa/callback", async (req, res) => {
     res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
@@ -134,7 +133,7 @@ app.post("/mpesa/callback", async (req, res) => {
         const resultCode = stkCallback.ResultCode;
         const status = resultCode === 0 ? "success" : "failed";
 
-        // Get order details from our mapping
+        // get order details from mapping
         const orderMapping = checkoutOrderMap.get(checkoutRequestID);
         if (!orderMapping) {
             console.error(`No order mapping found for CheckoutRequestID: ${checkoutRequestID}`);
@@ -145,7 +144,7 @@ app.post("/mpesa/callback", async (req, res) => {
         const { order_id: orderId, amount: originalAmount } = orderMapping;
         console.log(`Found order mapping: ${checkoutRequestID} -> ${orderId}`);
 
-        // Extract callback data
+        // extract callback data
         const items = stkCallback.CallbackMetadata?.Item || [];
         const mpesaReceipt = items.find(i => i.Name === "MpesaReceiptNumber")?.Value;
         const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
@@ -162,17 +161,17 @@ app.post("/mpesa/callback", async (req, res) => {
             status
         });
 
-        // Verify amount matches
+        // verify amount matches
         if (callbackAmount && parseFloat(callbackAmount) !== parseFloat(originalAmount)) {
             console.warn(`Amount mismatch: callback=${callbackAmount}, original=${originalAmount}`);
         }
 
-        // Use the original amount from our mapping since we have it
-        // Skip fetching from Go backend to avoid JWT complexity
+        // use the original amount from mapping
+        // skip fetching from Go backend to avoid JWT complexity
         const orderTotal = originalAmount;
         console.log(`Using original amount from mapping: ${orderTotal}`);
 
-        // Notify Go backend
+        // notify Go backend
         const notifyPayload = {
             order_id: orderId,
             status,
@@ -200,7 +199,7 @@ app.post("/mpesa/callback", async (req, res) => {
 
         console.log("Go backend notification successful:", notifyResponse.status);
 
-        // Clean up the mapping after successful processing
+        // clean up the mapping after successful processing
         checkoutOrderMap.delete(checkoutRequestID);
         console.log(`Cleaned up mapping for: ${checkoutRequestID}`);
 
@@ -213,7 +212,7 @@ app.post("/mpesa/callback", async (req, res) => {
     }
 });
 
-// Debug endpoint to check stored mappings
+// debug endpoint to check stored mappings
 app.get("/mpesa/mappings", (req, res) => {
     const mappings = Array.from(checkoutOrderMap.entries()).map(([checkoutId, data]) => ({
         checkoutRequestID: checkoutId,
@@ -222,14 +221,14 @@ app.get("/mpesa/mappings", (req, res) => {
     res.json({ mappings, count: mappings.length });
 });
 
-// Cleanup old mappings (run every hour)
+// cleanup old mappings (run every hour)
 setInterval(() => {
     const now = new Date();
     let cleaned = 0;
 
     for (const [checkoutId, data] of checkoutOrderMap.entries()) {
         const age = now - new Date(data.timestamp);
-        // Remove mappings older than 1 hour (3600000 ms)
+        // remove mappings older than 1 hour
         if (age > 3600000) {
             checkoutOrderMap.delete(checkoutId);
             cleaned++;
