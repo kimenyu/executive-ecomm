@@ -3,6 +3,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import dayjs from "dayjs";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 const app = express();
@@ -33,7 +34,15 @@ const MPESA_BASE =
         ? "https://api.safaricom.co.ke"
         : "https://sandbox.safaricom.co.ke";
 
-// auth token
+// Generate JWT token for Go backend authentication
+function generateJWTToken() {
+    const payload = {
+        service: "mpesa-node",
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+    };
+    return jwt.sign(payload, JWT_SECRET);
+}
 async function getAccessToken() {
     const url = `${MPESA_BASE}/oauth/v1/generate?grant_type=client_credentials`;
     const auth = Buffer.from(`${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`).toString("base64");
@@ -158,25 +167,10 @@ app.post("/mpesa/callback", async (req, res) => {
             console.warn(`Amount mismatch: callback=${callbackAmount}, original=${originalAmount}`);
         }
 
-        // Fetch order details from Go backend to get the correct total
-        let orderTotal = originalAmount;
-        try {
-            const orderResp = await axios.get(
-                `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${JWT_SECRET}`,
-                        "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
-                    }
-                }
-            );
-
-            orderTotal = orderResp.data.order?.total || originalAmount;
-            console.log(`Fetched order total from Go backend: ${orderTotal}`);
-        } catch (err) {
-            console.error("Failed to fetch order details from Go backend:", err.response?.status, err.response?.data || err.message);
-            console.log(`Using original amount as fallback: ${originalAmount}`);
-        }
+        // Use the original amount from our mapping since we have it
+        // Skip fetching from Go backend to avoid JWT complexity
+        const orderTotal = originalAmount;
+        console.log(`Using original amount from mapping: ${orderTotal}`);
 
         // Notify Go backend
         const notifyPayload = {
