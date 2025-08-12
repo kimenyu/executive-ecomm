@@ -88,14 +88,13 @@ app.post("/mpesa/stkpush", async (req, res) => {
     }
 });
 
-// callback
-// callback
+// Fixed callback handler
 app.post("/mpesa/callback", async (req, res) => {
     res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
     try {
         const body = req.body;
-        console.log("MPESA CALLBACK:", JSON.stringify(body));
+        console.log("MPESA CALLBACK:", JSON.stringify(body, null, 2));
 
         const stkCallback = body?.Body?.stkCallback;
         if (!stkCallback) {
@@ -112,19 +111,35 @@ app.post("/mpesa/callback", async (req, res) => {
         const mpesaReceipt = items.find(i => i.Name === "MpesaReceiptNumber")?.Value;
         const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
         const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
+        const amount = items.find(i => i.Name === "Amount")?.Value;
 
-        // Fallback logic for orderId
-        const orderId = req.body.order_id;
-        if (!orderId) {
-            console.error("No valid order identifier found in callback");
+        console.log("Extracted from callback:", {
+            accountRef,
+            checkoutRequestID,
+            merchantRequestID,
+            amount,
+            phone,
+            mpesaReceipt
+        });
+
+        // The real order ID should be in AccountReference
+        if (!accountRef) {
+            console.error("AccountReference is missing from M-Pesa callback - this contains the order_id");
+            console.error("Available items:", items);
             return;
         }
-        if (!accountRef) {
-            console.warn(`AccountReference missing in callback, falling back to orderId: ${orderId}`);
+
+        const orderId = accountRef; // This should be your UUID order ID
+
+        // Validate that orderId is a proper UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(orderId)) {
+            console.error(`Invalid order ID format: ${orderId}. Expected UUID format.`);
+            return;
         }
 
-        // Fetch order details
-        let orderTotal = null;
+        // Fetch order details using the correct order ID
+        let orderTotal = amount; // Use M-Pesa amount as fallback
         try {
             const orderResp = await axios.get(
                 `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
@@ -136,14 +151,22 @@ app.post("/mpesa/callback", async (req, res) => {
                 }
             );
 
-            orderTotal = orderResp.data.order?.total;
+            orderTotal = orderResp.data.order?.total || amount;
+            console.log(`Fetched order total: ${orderTotal} for order: ${orderId}`);
         } catch (err) {
-            console.error("Failed to fetch order details from Go backend:", err.message);
-            orderTotal = items.find(i => i.Name === "Amount")?.Value;
+            console.error("Failed to fetch order details from Go backend:", err.response?.data || err.message);
+            console.log(`Using M-Pesa amount as fallback: ${amount}`);
         }
 
+        console.log("Notifying Go backend with:", {
+            order_id: orderId,
+            status,
+            amount: orderTotal,
+            provider: "mpesa"
+        });
+
         // Notify backend
-        await axios.post(
+        const notifyResponse = await axios.post(
             GO_BACKEND_NOTIFY_URL,
             {
                 order_id: orderId,
@@ -156,13 +179,22 @@ app.post("/mpesa/callback", async (req, res) => {
                 phone: String(phone),
                 raw: body
             },
-            { headers: { "X-Node-Notify-Secret": NODE_NOTIFY_SECRET } }
-        ).catch(e => {
-            console.error("Failed to notify Go backend:", e.response?.data || e.message);
-        });
+            {
+                headers: {
+                    "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+
+        console.log("Go backend notification successful:", notifyResponse.status);
 
     } catch (err) {
-        console.error("Error processing mpesa callback:", err);
+        console.error("Error processing mpesa callback:", err.response?.data || err.message);
+        if (err.response) {
+            console.error("Response status:", err.response.status);
+            console.error("Response data:", err.response.data);
+        }
     }
 });
 
