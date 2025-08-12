@@ -8,6 +8,10 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
+// In-memory store for mapping CheckoutRequestID to order_id
+// In production, use Redis or database
+const checkoutOrderMap = new Map();
+
 app.get("/testapi", async (req, res) => {
     res.send("api is working");
 });
@@ -68,15 +72,29 @@ app.post("/mpesa/stkpush", async (req, res) => {
             PartyB: MPESA_SHORTCODE,
             PhoneNumber: phone,
             CallBackURL: callbackUrl,
-            AccountReference: order_id,
+            AccountReference: order_id, // Still send order_id, but don't rely on it in callback
             TransactionDesc: `Payment for order ${order_id}`,
         };
+
+        console.log("STK Push payload:", JSON.stringify(payload, null, 2));
 
         const resp = await axios.post(
             `${MPESA_BASE}/mpesa/stkpush/v1/processrequest`,
             payload,
             { headers: { Authorization: `Bearer ${token}` } }
         );
+
+        // Store the mapping between CheckoutRequestID and order_id
+        const checkoutRequestID = resp.data.CheckoutRequestID;
+        if (checkoutRequestID) {
+            checkoutOrderMap.set(checkoutRequestID, {
+                order_id,
+                amount,
+                phone,
+                timestamp: new Date().toISOString()
+            });
+            console.log(`Stored mapping: ${checkoutRequestID} -> ${order_id}`);
+        }
 
         return res.json({ daraja: resp.data });
     } catch (err) {
@@ -88,7 +106,7 @@ app.post("/mpesa/stkpush", async (req, res) => {
     }
 });
 
-// Fixed callback handler
+// Callback handler
 app.post("/mpesa/callback", async (req, res) => {
     res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
@@ -107,39 +125,41 @@ app.post("/mpesa/callback", async (req, res) => {
         const resultCode = stkCallback.ResultCode;
         const status = resultCode === 0 ? "success" : "failed";
 
+        // Get order details from our mapping
+        const orderMapping = checkoutOrderMap.get(checkoutRequestID);
+        if (!orderMapping) {
+            console.error(`No order mapping found for CheckoutRequestID: ${checkoutRequestID}`);
+            console.error("Available mappings:", Array.from(checkoutOrderMap.keys()));
+            return;
+        }
+
+        const { order_id: orderId, amount: originalAmount } = orderMapping;
+        console.log(`Found order mapping: ${checkoutRequestID} -> ${orderId}`);
+
+        // Extract callback data
         const items = stkCallback.CallbackMetadata?.Item || [];
         const mpesaReceipt = items.find(i => i.Name === "MpesaReceiptNumber")?.Value;
         const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
-        const accountRef = items.find(i => i.Name === "AccountReference")?.Value;
-        const amount = items.find(i => i.Name === "Amount")?.Value;
+        const callbackAmount = items.find(i => i.Name === "Amount")?.Value;
 
         console.log("Extracted from callback:", {
-            accountRef,
+            orderId,
             checkoutRequestID,
             merchantRequestID,
-            amount,
+            callbackAmount,
+            originalAmount,
             phone,
-            mpesaReceipt
+            mpesaReceipt,
+            status
         });
 
-        // The real order ID should be in AccountReference
-        if (!accountRef) {
-            console.error("AccountReference is missing from M-Pesa callback - this contains the order_id");
-            console.error("Available items:", items);
-            return;
+        // Verify amount matches
+        if (callbackAmount && parseFloat(callbackAmount) !== parseFloat(originalAmount)) {
+            console.warn(`Amount mismatch: callback=${callbackAmount}, original=${originalAmount}`);
         }
 
-        const orderId = accountRef; // This should be your UUID order ID
-
-        // Validate that orderId is a proper UUID
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(orderId)) {
-            console.error(`Invalid order ID format: ${orderId}. Expected UUID format.`);
-            return;
-        }
-
-        // Fetch order details using the correct order ID
-        let orderTotal = amount; // Use M-Pesa amount as fallback
+        // Fetch order details from Go backend to get the correct total
+        let orderTotal = originalAmount;
         try {
             const orderResp = await axios.get(
                 `${GO_BACKEND_NOTIFY_URL.replace('/payments/confirm', '')}/orders/${orderId}`,
@@ -151,34 +171,31 @@ app.post("/mpesa/callback", async (req, res) => {
                 }
             );
 
-            orderTotal = orderResp.data.order?.total || amount;
-            console.log(`Fetched order total: ${orderTotal} for order: ${orderId}`);
+            orderTotal = orderResp.data.order?.total || originalAmount;
+            console.log(`Fetched order total from Go backend: ${orderTotal}`);
         } catch (err) {
-            console.error("Failed to fetch order details from Go backend:", err.response?.data || err.message);
-            console.log(`Using M-Pesa amount as fallback: ${amount}`);
+            console.error("Failed to fetch order details from Go backend:", err.response?.status, err.response?.data || err.message);
+            console.log(`Using original amount as fallback: ${originalAmount}`);
         }
 
-        console.log("Notifying Go backend with:", {
+        // Notify Go backend
+        const notifyPayload = {
             order_id: orderId,
             status,
             amount: orderTotal,
-            provider: "mpesa"
-        });
+            provider: "mpesa",
+            checkout_request_id: checkoutRequestID,
+            merchant_request_id: merchantRequestID,
+            mpesa_receipt: mpesaReceipt,
+            phone: String(phone),
+            raw: body
+        };
 
-        // Notify backend
+        console.log("Notifying Go backend with:", JSON.stringify(notifyPayload, null, 2));
+
         const notifyResponse = await axios.post(
             GO_BACKEND_NOTIFY_URL,
-            {
-                order_id: orderId,
-                status,
-                amount: orderTotal,
-                provider: "mpesa",
-                checkout_request_id: checkoutRequestID,
-                merchant_request_id: merchantRequestID,
-                mpesa_receipt: mpesaReceipt,
-                phone: String(phone),
-                raw: body
-            },
+            notifyPayload,
             {
                 headers: {
                     "X-Node-Notify-Secret": NODE_NOTIFY_SECRET,
@@ -189,14 +206,46 @@ app.post("/mpesa/callback", async (req, res) => {
 
         console.log("Go backend notification successful:", notifyResponse.status);
 
+        // Clean up the mapping after successful processing
+        checkoutOrderMap.delete(checkoutRequestID);
+        console.log(`Cleaned up mapping for: ${checkoutRequestID}`);
+
     } catch (err) {
         console.error("Error processing mpesa callback:", err.response?.data || err.message);
         if (err.response) {
             console.error("Response status:", err.response.status);
-            console.error("Response data:", err.response.data);
+            console.error("Response headers:", err.response.headers);
         }
     }
 });
+
+// Debug endpoint to check stored mappings
+app.get("/mpesa/mappings", (req, res) => {
+    const mappings = Array.from(checkoutOrderMap.entries()).map(([checkoutId, data]) => ({
+        checkoutRequestID: checkoutId,
+        ...data
+    }));
+    res.json({ mappings, count: mappings.length });
+});
+
+// Cleanup old mappings (run every hour)
+setInterval(() => {
+    const now = new Date();
+    let cleaned = 0;
+
+    for (const [checkoutId, data] of checkoutOrderMap.entries()) {
+        const age = now - new Date(data.timestamp);
+        // Remove mappings older than 1 hour (3600000 ms)
+        if (age > 3600000) {
+            checkoutOrderMap.delete(checkoutId);
+            cleaned++;
+        }
+    }
+
+    if (cleaned > 0) {
+        console.log(`Cleaned up ${cleaned} old checkout mappings`);
+    }
+}, 3600000);
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`mpesa service running on port ${port}`));
