@@ -35,6 +35,30 @@ services:
       timeout: 5s
       retries: 5
 
+  goapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: executive_go
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://ecommerce_user:strongpassword@db:5432/ecommerce?sslmode=disable
+      REDIS_ADDR: redis:6379
+
+  mpesa-service:
+    build:
+      context: ./mpesa-service
+      dockerfile: Dockerfile
+    container_name: mpesa_service
+    depends_on:
+      - goapp
+    ports:
+      - "5000:5000"
+
 volumes:
   postgres_data:
   redis_data:
