@@ -15,6 +15,7 @@ The **Executive eCommerce API** is a full-featured, backend written in Go for ma
 - **Complete Mpesa payment integration** with STK Push, callback handling, and payment confirmation
 - **PostgreSQL database integration** with comprehensive payment tracking
 - **Full Swagger/OpenAPI documentation**
+- **Fully containerized deployment** with Docker and Docker Compose
 
 ## Tech Stack
 
@@ -44,11 +45,21 @@ executive-ecomm/
 ├── utils/            # Helper utilities
 ├── docs/             # Swagger docs
 ├── mpesa-service/    # Node.js Mpesa STK Push and callback handler
-├── docker-compose.yml
+│   ├── Dockerfile    # Node.js service containerization
+│   ├── index.js      # Main Node.js application
+│   └── package.json  # Node.js dependencies
+├── Dockerfile        # Go backend containerization
+├── docker-compose.yml # Multi-service orchestration
 ├── Makefile
+└── README.md
 ```
 
 ## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose installed
+- Git for cloning the repository
 
 ### 1. Clone the repository
 
@@ -57,9 +68,11 @@ git clone https://github.com/kimenyu/executive-ecomm.git
 cd executive-ecomm
 ```
 
-### 2. Setup Environment
+### 2. Setup Environment Variables
 
-Create a `.env` file for the Go backend:
+The application uses environment variables for configuration. For Docker deployment, the essential variables are already configured in `docker-compose.yml`, but you may want to create `.env` files for additional customization.
+
+#### Optional: Go Backend `.env` (for local development)
 
 ```bash
 # ===== API CONFIG =====
@@ -95,7 +108,7 @@ SWAGGER_SCHEMES=http
 NODE_NOTIFY_SECRET=supersecret-node-key
 ```
 
-Create a `.env` file for the Node.js Mpesa service:
+#### Optional: Node.js Mpesa Service `.env` (for production Mpesa integration)
 
 ```bash
 # ===== NODE.JS MPESA SERVICE =====
@@ -112,32 +125,99 @@ MPESA_ENV=sandbox    # or "production"
 CALLBACK_BASE_URL=https://your-node-service.onrender.com
 
 # Go backend notification settings
-GO_BACKEND_NOTIFY_URL=https://your-go-backend.ngrok.io/api/v1/payments/confirm
+GO_BACKEND_NOTIFY_URL=http://goapp:8080/api/v1/payments/confirm
 NODE_NOTIFY_SECRET=supersecret-node-key
 JWT_SECRET=supersecretkey
 ```
 
-### 3. Build & Run
+### 3. Run with Docker (Recommended)
 
-Start the Go backend:
+The application is fully containerized with Docker Compose, which will start all services including PostgreSQL, Redis, the Go backend, and the Node.js Mpesa service.
+
+```bash
+# Build and start all services
+docker compose up --build
+
+# Or run in detached mode
+docker compose up --build -d
+
+# View logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
+
+# Stop and remove volumes (clean reset)
+docker compose down -v
+```
+
+#### Docker Services
+
+The Docker setup includes:
+
+- **PostgreSQL Database** (`db`): Accessible on port 5432
+- **Redis Cache** (`redis`): Accessible on port 6379
+- **Go Backend** (`goapp`): Accessible on port 8080
+- **Node.js Mpesa Service** (`mpesa-service`): Accessible on port 5000
+
+All services are connected via Docker networking and include health checks for reliability.
+
+### 4. Alternative: Local Development Setup
+
+If you prefer to run services locally:
+
+**Start Go backend:**
 ```bash
 make build
 make run
 ```
 
-Start the Node.js Mpesa service(good choice if you deploy deplooy the backend. Daraja callbacks does not work on locahosts):
+**Start Node.js Mpesa service:**
 ```bash
 cd mpesa-service
 npm install
 npm start
 ```
 
-### 4. View API Docs
+**Note**: You'll need to run PostgreSQL and Redis separately for local development.
 
-Visit:
+### 5. View API Documentation
+
+Once the services are running, visit:
 ```
 http://localhost:8080/swagger/index.html
 ```
+
+## Docker Configuration
+
+### Container Architecture
+
+The application uses a multi-stage Docker build:
+
+- **Go Backend**: Multi-stage build using `golang:1.24-alpine` for building and `alpine:3.19` for runtime
+- **Node.js Service**: Built on `node:20-alpine` for optimal size and performance
+- **PostgreSQL**: Official `postgres:15` image with custom initialization
+- **Redis**: Official `redis:7` image with persistence enabled
+
+### Volume Management
+
+Docker Compose creates persistent volumes for:
+- `postgres_data`: Database storage
+- `redis_data`: Redis persistence
+
+### Health Checks
+
+All services include health checks:
+- **PostgreSQL**: `pg_isready` command
+- **Redis**: `redis-cli ping` command
+- **Service Dependencies**: Proper startup ordering with `depends_on`
+
+### Container Networking
+
+Services communicate via Docker's internal networking:
+- Go backend connects to PostgreSQL at `db:5432`
+- Go backend connects to Redis at `redis:6379`
+- Node.js service connects to Go backend at `goapp:8080`
 
 ## Payment Integration
 
@@ -257,46 +337,102 @@ make migrate-down
 make swagger
 ```
 
+### Docker Development Commands
+
+```bash
+# Rebuild specific service
+docker compose build goapp
+docker compose build mpesa-service
+
+# View service logs
+docker compose logs goapp
+docker compose logs mpesa-service
+
+# Execute commands in running containers
+docker compose exec goapp /bin/sh
+docker compose exec db psql -U ecommerce_user -d ecommerce
+
+# Scale services (if needed)
+docker compose up --scale goapp=2
+```
+
 ## Deployment
+
+### Production Docker Deployment
+
+1. **Build for production:**
+   ```bash
+   docker compose -f docker-compose.yml up --build -d
+   ```
+
+2. **Environment Variables**: Create production `.env` files with:
+    - Production database credentials
+    - Production Mpesa API credentials
+    - Strong JWT secrets
+    - Production Redis configuration
+
+3. **SSL/TLS**: Configure reverse proxy (nginx/traefik) for HTTPS termination
+
+4. **Monitoring**: Add container monitoring with tools like Prometheus/Grafana
 
 ### Production Considerations
 
 1. **Environment Variables**: Use production Mpesa credentials
 2. **HTTPS**: Ensure both Node.js and Go services use HTTPS
 3. **Database**: Use production PostgreSQL with connection pooling
-4. **Redis**: Use Redis for payment mapping storage in production
+4. **Redis**: Use Redis for payment mapping storage in production(The application is currently using js map)
 5. **Monitoring**: Implement payment monitoring and alerting
 6. **Backup**: Regular database backups including payment records
+7. **Container Orchestration**: Consider using Kubernetes for large-scale deployments
+8. **Load Balancing**: Use multiple container replicas behind a load balancer
+9. **Security**: Implement proper network policies and secrets management
 
-### Docker Deployment
-```bash
-docker-compose up -d
-```
+### Cloud Deployment Options
+
+- **Docker Swarm**: For simple multi-node deployments
+- **Kubernetes**: For advanced orchestration and scaling
+- **Cloud Container Services**: AWS ECS/Fargate, Google Cloud Run, Azure Container Instances
+- **Platform-as-a-Service**: Railway, Render, DigitalOcean App Platform
 
 ## Contributing
 
 Pull requests and issues are welcome. Before contributing, ensure your code is tested and follows existing patterns.
 
-### Adding New Payment Methods
-
-The payment system is designed to be extensible. To add new payment providers:
-
-1. Add provider to `types.Payment.Provider` enum
-2. Implement provider-specific handler in Node.js service
-3. Update Go backend confirmation handler
-4. Add appropriate database fields if needed
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Missing AccountReference**: Mpesa sometimes doesn't return `AccountReference` in callbacks. The system handles this with internal mapping.
+1. **Container Startup Issues**: Check logs with `docker compose logs <service_name>`
 
-2. **JWT Token Issues**: Ensure `JWT_SECRET` matches between Node.js and Go services.
+2. **Database Connection**: Ensure PostgreSQL container is healthy before Go app starts
 
-3. **Callback Timeouts**: Mpesa callbacks have short timeouts. Process quickly and return success immediately.
+3. **Port Conflicts**: Change ports in `docker-compose.yml` if 5432, 6379, 8080, or 5000 are in use
 
-4. **Amount Mismatches**: System validates payment amounts against order totals.
+4. **Missing AccountReference**: Mpesa sometimes doesn't return `AccountReference` in callbacks. The system handles this with internal mapping.
+
+5. **JWT Token Issues**: Ensure `JWT_SECRET` matches between Node.js and Go services.
+
+6. **Callback Timeouts**: Mpesa callbacks have short timeouts. Process quickly and return success immediately.
+
+7. **Amount Mismatches**: System validates payment amounts against order totals.
+
+### Docker Troubleshooting
+
+```bash
+# Check container status
+docker compose ps
+
+# View detailed logs
+docker compose logs --tail=100 -f goapp
+
+# Restart specific service
+docker compose restart goapp
+
+# Clean rebuild
+docker compose down -v
+docker compose up --build
+```
 
 ## License
 

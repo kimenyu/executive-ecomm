@@ -92,7 +92,7 @@ app.post("/mpesa/stkpush", async (req, res) => {
             { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        // Store the mapping between CheckoutRequestID and order_id
+        // store the mapping between CheckoutRequestID and order_id
         const checkoutRequestID = resp.data.CheckoutRequestID;
         if (checkoutRequestID) {
             checkoutOrderMap.set(checkoutRequestID, {
