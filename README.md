@@ -356,6 +356,44 @@ docker compose exec db psql -U ecommerce_user -d ecommerce
 docker compose up --scale goapp=2
 ```
 
+## Deployment
+
+### Production Notes
+
+1. **Build for production:**
+   ```bash
+   docker compose -f docker-compose.yml up --build -d
+   ```
+
+2. **Environment Variables**: Create production `.env` files with:
+    - Production database credentials
+    - Production Mpesa API credentials
+    - Strong JWT secrets
+    - Production Redis configuration
+
+3. **SSL/TLS**: Configure reverse proxy (nginx/traefik) for HTTPS termination
+
+4. **Monitoring**: Add container monitoring with tools like Prometheus/Grafana
+
+### Production Considerations
+
+1. **Environment Variables**: Use production Mpesa credentials
+2. **HTTPS**: Ensure both Node.js and Go services use HTTPS
+3. **Database**: Use production PostgreSQL with connection pooling
+4. **Redis**: Use Redis for payment mapping storage in production(The application is currently using js map)
+5. **Monitoring**: Implement payment monitoring and alerting
+6. **Backup**: Regular database backups including payment records
+7. **Container Orchestration**: Consider using Kubernetes for large-scale deployments
+8. **Load Balancing**: Use multiple container replicas behind a load balancer
+9. **Security**: Implement proper network policies and secrets management
+
+### Cloud Deployment Options
+
+- **Docker Swarm**: For simple multi-node deployments
+- **Kubernetes**: For advanced orchestration and scaling
+- **Cloud Container Services**: AWS ECS/Fargate, Google Cloud Run, Azure Container Instances
+- **Platform-as-a-Service**: Railway, Render, DigitalOcean App Platform
+
 ## Contributing
 
 Pull requests and issues are welcome. Before contributing, ensure your code is tested and follows existing patterns.
