@@ -11,7 +11,12 @@
 package api
 
 import (
+	"crypto/tls"
 	"database/sql"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog/v3"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"log"
 	"log/slog"
 	"net"
@@ -19,13 +24,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httplog/v3"
-	httpSwagger "github.com/swaggo/http-swagger"
-
-	"github.com/redis/go-redis/v9"
 	"github.com/go-redis/redis_rate/v10"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/google/uuid"
 
@@ -89,10 +89,12 @@ func (s *APIServer) Run() error {
 	// Redis client from env
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPassword,
-		DB:       0,
+		Addr:      redisAddr,
+		Password:  redisPassword,
+		DB:        0,
+		TLSConfig: &tls.Config{}, // ← Add this
 	})
 	limiter := redis_rate.NewLimiter(rdb)
 
@@ -117,6 +119,12 @@ func (s *APIServer) Run() error {
 	})
 
 	router.Use(logging.RateLimitMiddleware(limiter, redis_rate.PerMinute(300), ClientKey))
+
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
 
 	// ===== Test route =====
 	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
