@@ -84,7 +84,10 @@ func (s *APIServer) Run() error {
 	})
 
 	// rate limit backing
-	rdb := redis.NewClient(&redis.Options{Addr: "redis:6379"})
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_ADDR"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+	})
 	limiter := redis_rate.NewLimiter(rdb)
 
 	router := chi.NewRouter()
