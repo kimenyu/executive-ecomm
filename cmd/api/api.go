@@ -104,6 +104,13 @@ func (s *APIServer) Run() error {
 		LogResponseBody: func(r *http.Request) bool { return r.Header.Get("Debug") == "reveal-body-logs" },
 	}))
 
+	// Simple test route
+	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"api is working well"}`))
+	})
+
 	// Attach user_id attr if present
 	router.Use(func(next http.Handler) http.Handler {
 		return logging.AddAttrs(next) // we’ll set per-request attrs inside subroutes below
