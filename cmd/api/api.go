@@ -1,7 +1,7 @@
 // cmd/api/api.go
 // @title Executive API
 // @version 1.0
-// @description This is a REST API for the Executive eCommerce platform.
+// @description REST API for Executive eCommerce platform.
 // @host localhost:8080
 // @BasePath /api/v1
 // @schemes http
@@ -12,6 +12,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"log/slog"
 	"net"
@@ -22,18 +23,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog/v3"
-	"github.com/kimenyu/executive/internal/logging"
-	"github.com/kimenyu/executive/services/address"
-	"github.com/kimenyu/executive/services/payment"
 	httpSwagger "github.com/swaggo/http-swagger"
 
-	"github.com/go-redis/redis_rate/v10"
 	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis_rate/v10"
 
 	"github.com/google/uuid"
+
+	"github.com/kimenyu/executive/internal/logging"
+	"github.com/kimenyu/executive/services/address"
 	"github.com/kimenyu/executive/services/cart"
 	"github.com/kimenyu/executive/services/category"
 	"github.com/kimenyu/executive/services/order"
+	"github.com/kimenyu/executive/services/payment"
 	"github.com/kimenyu/executive/services/product"
 	"github.com/kimenyu/executive/services/review"
 	"github.com/kimenyu/executive/services/user"
@@ -52,6 +54,7 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 	}
 }
 
+// ClientKey for rate limiting (user ID if logged in, else IP)
 func ClientKey(r *http.Request) string {
 	if uid := types.UserIDFromContext(r.Context()); uid != uuid.Nil {
 		return "uid:" + uid.String()
@@ -59,6 +62,7 @@ func ClientKey(r *http.Request) string {
 	return "ip:" + RealIP(r)
 }
 
+// RealIP returns client IP
 func RealIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")
@@ -83,21 +87,23 @@ func (s *APIServer) Run() error {
 		Compact: true,
 	})
 
-	// rate limit backing
+	// Redis client from env
+	redisAddr := os.Getenv("REDIS_ADDR")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_ADDR"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       0,
 	})
 	limiter := redis_rate.NewLimiter(rdb)
 
 	router := chi.NewRouter()
 
-	// Core middlewares
+	// ===== Middleware (must come first) =====
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Recoverer)
 
-	// Structured request logger
 	router.Use(logging.RequestLogger(&httplog.Options{
 		Level:           slog.LevelInfo,
 		Schema:          httplog.SchemaECS,
@@ -107,24 +113,23 @@ func (s *APIServer) Run() error {
 		LogResponseBody: func(r *http.Request) bool { return r.Header.Get("Debug") == "reveal-body-logs" },
 	}))
 
-	// Simple test route
+	router.Use(func(next http.Handler) http.Handler {
+		return logging.AddAttrs(next) // per-request attrs
+	})
+
+	router.Use(logging.RateLimitMiddleware(limiter, redis_rate.PerMinute(300), ClientKey))
+
+	// ===== Test route =====
 	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"message":"api is working well"}`))
 	})
 
-	// Attach user_id attr if present
-	router.Use(func(next http.Handler) http.Handler {
-		return logging.AddAttrs(next) // we’ll set per-request attrs inside subroutes below
-	})
-
-	// Global distributed rate limit (per client)
-	router.Use(logging.RateLimitMiddleware(limiter, redis_rate.PerMinute(300), ClientKey))
-
-	// Swagger
+	// ===== Swagger =====
 	router.Get("/swagger/*", httpSwagger.WrapHandler)
 
+	// ===== API v1 routes =====
 	router.Route("/api/v1", func(r chi.Router) {
 		// stores
 		userStore := user.NewStore(s.db)
@@ -134,7 +139,7 @@ func (s *APIServer) Run() error {
 		cartStore := cart.NewStore(s.db)
 		orderStore := order.NewStore(s.db)
 		addressStore := address.NewStore(s.db)
-		paymenStore := payment.NewStore(s.db)
+		paymentStore := payment.NewStore(s.db)
 
 		// handlers
 		userHandler := user.NewHandler(userStore)
@@ -144,9 +149,9 @@ func (s *APIServer) Run() error {
 		cartHandler := cart.NewHandler(cartStore, userStore)
 		orderHandler := order.NewHandler(orderStore, userStore, addressStore)
 		addressHandler := address.NewHandler(addressStore, userStore)
-		paymentHandler := payment.NewHandler(paymenStore, orderStore)
+		paymentHandler := payment.NewHandler(paymentStore, orderStore)
 
-		// Add per-request attribute when authenticated (user_id)
+		// per-request attrs for authenticated user
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, rr *http.Request) {
 				if uid := types.UserIDFromContext(rr.Context()); uid != uuid.Nil {
@@ -156,7 +161,7 @@ func (s *APIServer) Run() error {
 			})
 		})
 
-		// routes
+		// register routes
 		userHandler.RegisterRoutes(r)
 		productHandler.RegisterRoutes(r)
 		categoryHandler.RegisterRoutes(r)
