@@ -12,7 +12,6 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"log/slog"
 	"net"
